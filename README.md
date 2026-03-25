@@ -1,30 +1,40 @@
-RouteAlpha
-RouteAlpha is a backend-first AI inference routing system that intelligently selects a model route based on request complexity, task type, and user priority. The goal is to simulate a startup-grade multi-model routing platform that balances cost, speed, and quality.
+# RouteAlpha
 
-Current Status
-This project is currently in the early backend phase. The first working version of the routing API is complete and supports real model inference using OpenRouter through LiteLLM.
+RouteAlpha is a backend-first AI inference routing system that selects a model route based on request complexity, task type, and user priority. The project is designed to evolve into a startup-style multi-model routing platform focused on balancing cost, speed, and quality.
 
-Features Implemented So Far
-Backend API
-Built with FastAPI
-Virtual environment configured
-Environment variable support added with .env
-GitHub repository initialized and connected
-Endpoints
-GET /health
-Confirms the backend service is running
+## Current Status
 
-POST /infer
-Accepts a prompt and routes the request to a selected model
+The current version includes a working backend API with real model inference, rule-based routing, and latency reporting.
 
-Request Inputs
-The /infer endpoint currently accepts:
+## Project Purpose
 
-prompt
-task_type
-priority
+This project explores how AI systems can route requests to different models instead of sending every request to the same one. The current backend focuses on routing logic, model invocation, and API structure.
+
+## Implemented Functionality
+
+### Backend API
+The backend is built with FastAPI and provides the main inference service.
+
+### Health Check Endpoint
+`GET /health`
+
+This endpoint confirms that the backend service is running.
+
+### Inference Endpoint
+`POST /infer`
+
+This endpoint accepts a request prompt and routes it to a selected model based on task type, prompt length, and priority.
+
+### Request Inputs
+The `/infer` endpoint currently accepts:
+
+- `prompt`
+- `task_type`
+- `priority`
+
 Example request:
 
+```json
 {
   "prompt": "Write a Python function to merge two sorted linked lists.",
   "task_type": "coding",
