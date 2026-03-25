@@ -1,27 +1,39 @@
 # RouteAlpha
 
-RouteAlpha is a backend-first AI inference routing system that intelligently selects a model route based on request complexity, task type, and user priority. The goal is to simulate a startup-grade multi-model routing platform that balances cost, speed, and quality.
+RouteAlpha is a backend-first AI inference routing system that selects a model route based on request complexity, task type, and user priority. The project is designed to grow into a startup-style multi-model routing platform focused on balancing cost, speed, and quality.
 
 ## Current Status
 
-This project is currently in the early backend phase. The first working version of the routing API is complete and supports real model inference using OpenRouter through LiteLLM.
+The current backend version is working and supports:
+- real model inference
+- rule-based route selection
+- route reasoning
+- latency reporting
+- token estimation
+- cost estimation
+- request ID generation
 
-## Features Implemented So Far
+## Project Purpose
+
+RouteAlpha explores how AI systems can intelligently choose between model routes instead of sending every request to the same model. The backend currently focuses on routing logic, model invocation, request metadata, and response metrics.
+
+## Implemented Functionality
 
 ### Backend API
-- Built with **FastAPI**
-- Virtual environment configured
-- Environment variable support added with `.env`
-- GitHub repository initialized and connected
+The backend is built with FastAPI and serves as the main inference layer.
 
-### Endpoints
-- `GET /health`  
-  Confirms the backend service is running
+### Health Check Endpoint
+`GET /health`
 
-- `POST /infer`  
-  Accepts a prompt and routes the request to a selected model
+This endpoint confirms that the backend service is running.
 
-### Request Inputs
+### Inference Endpoint
+`POST /infer`
+
+This endpoint accepts a prompt and routes it to a selected model based on task type, prompt length, and priority.
+
+## Request Inputs
+
 The `/infer` endpoint currently accepts:
 
 - `prompt`

@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from uuid import uuid4
 from app.schemas import InferenceRequest
 from app.router import choose_model
 from app.llm_service import call_model
@@ -20,19 +21,20 @@ def infer(request: InferenceRequest):
             priority=request.priority or "balanced"
         )
 
-        model_used, response_text, latency_ms = call_model(
-            route_key=route_key,
-            prompt=request.prompt
-        )
+        result = call_model(route_key=route_key, prompt=request.prompt)
 
         return {
+            "request_id": str(uuid4()),
             "route_key": route_key,
             "route_reason": route_reason,
-            "model_used": model_used,
+            "model_used": result["model_used"],
             "task_type": request.task_type,
             "priority": request.priority,
-            "response": response_text,
-            "latency_ms": latency_ms
+            "estimated_input_tokens": result["estimated_input_tokens"],
+            "estimated_output_tokens": result["estimated_output_tokens"],
+            "estimated_cost_usd": result["estimated_cost_usd"],
+            "response": result["response_text"],
+            "latency_ms": result["latency_ms"],
         }
 
     except Exception as e:
