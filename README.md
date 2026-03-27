@@ -1,19 +1,28 @@
 # RouteAlpha
 
-RouteAlpha is a backend-first AI inference routing system that selects a model route based on request complexity, task type, and user priority. The project is designed to evolve into a startup-style multi-model routing platform focused on balancing cost, speed, and quality.
+RouteAlpha is a backend-first AI inference routing system that selects a model route based on request complexity, task type, and user priority. The project is designed to grow into a startup-style multi-model routing platform focused on balancing cost, speed, and quality.
 
 ## Current Status
 
-The current version includes a working backend API with real model inference, rule-based routing, and latency reporting.
+The current backend version is working and supports:
+
+- real model inference
+- rule-based route selection
+- route reasoning
+- latency reporting
+- token estimation
+- cost estimation
+- request ID generation
+- PostgreSQL request logging
 
 ## Project Purpose
 
-This project explores how AI systems can route requests to different models instead of sending every request to the same one. The current backend focuses on routing logic, model invocation, and API structure.
+RouteAlpha explores how AI systems can intelligently choose between model routes instead of sending every request to the same model. The backend currently focuses on routing logic, model invocation, request metadata, cost and token estimation, and persistent request logging.
 
 ## Implemented Functionality
 
 ### Backend API
-The backend is built with FastAPI and provides the main inference service.
+The backend is built with FastAPI and serves as the main inference layer.
 
 ### Health Check Endpoint
 `GET /health`
@@ -23,9 +32,10 @@ This endpoint confirms that the backend service is running.
 ### Inference Endpoint
 `POST /infer`
 
-This endpoint accepts a request prompt and routes it to a selected model based on task type, prompt length, and priority.
+This endpoint accepts a prompt and routes it to a selected model based on task type, prompt length, and priority. It also saves the request and response metadata into PostgreSQL.
 
-### Request Inputs
+## Request Inputs
+
 The `/infer` endpoint currently accepts:
 
 - `prompt`
