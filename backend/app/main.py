@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from uuid import uuid4
 from app.schemas import InferenceRequest
 from app.router import choose_model
@@ -9,6 +10,13 @@ from app.analytics import (get_summary_stats, get_route_breakdown, get_model_bre
 
 Base.metadata.create_all(bind=engine)
 app = FastAPI(title="RouteAlpha API")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/health")
