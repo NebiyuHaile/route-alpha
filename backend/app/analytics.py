@@ -57,3 +57,48 @@ def get_model_breakdown():
         ]
     finally:
         db.close()
+
+def get_cost_breakdown():
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(
+                InferenceLog.model_used,
+                func.sum(InferenceLog.estimated_cost_usd).label("total_cost")
+            )
+            .group_by(InferenceLog.model_used)
+            .all()
+        )
+
+        return [
+            {
+                "model_used": row.model_used,
+                "total_estimated_cost_usd": round(float(row.total_cost or 0), 6)
+            }
+            for row in rows
+        ]
+    finally:
+        db.close()
+
+
+def get_latency_breakdown():
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(
+                InferenceLog.model_used,
+                func.avg(InferenceLog.latency_ms).label("average_latency")
+            )
+            .group_by(InferenceLog.model_used)
+            .all()
+        )
+
+        return [
+            {
+                "model_used": row.model_used,
+                "average_latency_ms": round(float(row.average_latency or 0), 2)
+            }
+            for row in rows
+        ]
+    finally:
+        db.close()
