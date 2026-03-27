@@ -5,6 +5,7 @@ from app.router import choose_model
 from app.llm_service import call_model
 from app.database import Base, engine, SessionLocal
 from app.models import InferenceLog
+from app.analytics import get_summary_stats, get_route_breakdown, get_model_breakdown
 
 Base.metadata.create_all(bind=engine)
 app = FastAPI(title="RouteAlpha API")
@@ -13,6 +14,20 @@ app = FastAPI(title="RouteAlpha API")
 @app.get("/health")
 def health_check():
     return {"status": "ok", "service": "RouteAlpha backend"}
+
+@app.get("/analytics/summary")
+def analytics_summary():
+    return get_summary_stats()
+
+
+@app.get("/analytics/routes")
+def analytics_routes():
+    return get_route_breakdown()
+
+
+@app.get("/analytics/models")
+def analytics_models():
+    return get_model_breakdown()
 
 
 @app.post("/infer")
