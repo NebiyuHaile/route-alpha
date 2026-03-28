@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import {
   BarChart,
   Bar,
@@ -196,13 +197,22 @@ export default function Home() {
             </p>
           </div>
 
-          <button
-            onClick={() => loadDashboard(true)}
-            disabled={refreshing}
-            className="px-4 py-2 rounded-xl bg-slate-900 text-white disabled:opacity-60"
-          >
-            {refreshing ? "Refreshing..." : "Refresh Data"}
-          </button>
+          <div className="flex gap-3">
+            <Link
+              href="/infer"
+              className="px-4 py-2 rounded-xl border border-slate-300 bg-white text-slate-900 hover:bg-slate-100 transition"
+            >
+              Go to Inference
+            </Link>
+
+            <button
+              onClick={() => loadDashboard(true)}
+              disabled={refreshing}
+              className="px-4 py-2 rounded-xl bg-slate-900 text-white disabled:opacity-60 hover:bg-slate-800 transition"
+            >
+              {refreshing ? "Refreshing..." : "Refresh Data"}
+            </button>
+          </div>
         </div>
 
         <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
