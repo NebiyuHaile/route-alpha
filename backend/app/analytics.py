@@ -102,3 +102,30 @@ def get_latency_breakdown():
         ]
     finally:
         db.close()
+
+
+def get_recent_requests(limit: int = 10):
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(InferenceLog)
+            .order_by(InferenceLog.created_at.desc())
+            .limit(limit)
+            .all()
+        )
+
+        return [
+            {
+                "request_id": row.request_id,
+                "task_type": row.task_type,
+                "priority": row.priority,
+                "route_key": row.route_key,
+                "model_used": row.model_used,
+                "estimated_cost_usd": row.estimated_cost_usd,
+                "latency_ms": row.latency_ms,
+                "created_at": row.created_at.isoformat() if row.created_at else None,
+            }
+            for row in rows
+        ]
+    finally:
+        db.close()

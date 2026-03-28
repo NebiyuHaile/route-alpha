@@ -37,8 +37,20 @@ type LatencyData = {
   average_latency_ms: number;
 };
 
+type RecentRequest = {
+  request_id: string;
+  task_type: string | null;
+  priority: string | null;
+  route_key: string;
+  model_used: string;
+  estimated_cost_usd: number;
+  latency_ms: number;
+  created_at: string | null;
+};
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+
 
 export default function Home() {
   const [summary, setSummary] = useState<SummaryData | null>(null);
@@ -46,6 +58,7 @@ export default function Home() {
   const [models, setModels] = useState<ModelData[]>([]);
   const [costs, setCosts] = useState<CostData[]>([]);
   const [latency, setLatency] = useState<LatencyData[]>([]);
+  const [recentRequests, setRecentRequests] = useState<RecentRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -58,12 +71,14 @@ export default function Home() {
           modelsRes,
           costsRes,
           latencyRes,
+          recentRes,
         ] = await Promise.all([
           fetch(`${API_BASE_URL}/analytics/summary`),
           fetch(`${API_BASE_URL}/analytics/routes`),
           fetch(`${API_BASE_URL}/analytics/models`),
           fetch(`${API_BASE_URL}/analytics/costs`),
           fetch(`${API_BASE_URL}/analytics/latency`),
+          fetch(`${API_BASE_URL}/analytics/recent`),
         ]);
 
         if (
@@ -71,7 +86,8 @@ export default function Home() {
           !routesRes.ok ||
           !modelsRes.ok ||
           !costsRes.ok ||
-          !latencyRes.ok
+          !latencyRes.ok ||
+          !recentRes.ok
         ) {
           throw new Error("Failed to load dashboard analytics.");
         }
@@ -81,12 +97,14 @@ export default function Home() {
         const modelsData = await modelsRes.json();
         const costsData = await costsRes.json();
         const latencyData = await latencyRes.json();
+        const recentData = await recentRes.json();
 
         setSummary(summaryData);
         setRoutes(routesData);
         setModels(modelsData);
         setCosts(costsData);
         setLatency(latencyData);
+        setRecentRequests(recentData);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Something went wrong.");
       } finally {
@@ -172,6 +190,43 @@ export default function Home() {
               barKey="average_latency_ms"
             />
           </ChartCard>
+
+          <section className="rounded-2xl bg-white shadow-sm border border-slate-200 p-6">
+              <h2 className="text-xl font-semibold mb-4">Recent Requests</h2>
+
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-left">
+                      <th className="py-3 pr-4">Task</th>
+                      <th className="py-3 pr-4">Priority</th>
+                      <th className="py-3 pr-4">Route</th>
+                      <th className="py-3 pr-4">Model</th>
+                      <th className="py-3 pr-4">Cost</th>
+                      <th className="py-3 pr-4">Latency</th>
+                      <th className="py-3 pr-4">Created</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentRequests.map((row) => (
+                      <tr key={row.request_id} className="border-b border-slate-100">
+                        <td className="py-3 pr-4">{row.task_type || "-"}</td>
+                        <td className="py-3 pr-4">{row.priority || "-"}</td>
+                        <td className="py-3 pr-4">{row.route_key}</td>
+                        <td className="py-3 pr-4 break-all">{row.model_used}</td>
+                        <td className="py-3 pr-4">${row.estimated_cost_usd}</td>
+                        <td className="py-3 pr-4">{row.latency_ms} ms</td>
+                        <td className="py-3 pr-4">
+                          {row.created_at
+                            ? new Date(row.created_at).toLocaleString()
+                            : "-"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
         </section>
       </div>
     </main>

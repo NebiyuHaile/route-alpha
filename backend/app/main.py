@@ -6,7 +6,7 @@ from app.router import choose_model
 from app.llm_service import call_model
 from app.database import Base, engine, SessionLocal
 from app.models import InferenceLog
-from app.analytics import (get_summary_stats, get_route_breakdown, get_model_breakdown, get_cost_breakdown, get_latency_breakdown)
+from app.analytics import (get_summary_stats, get_route_breakdown, get_model_breakdown, get_cost_breakdown, get_latency_breakdown, get_recent_requests)
 
 Base.metadata.create_all(bind=engine)
 app = FastAPI(title="RouteAlpha API")
@@ -44,6 +44,10 @@ def analytics_costs():
 @app.get("/analytics/latency")
 def analytics_latency():
     return get_latency_breakdown()
+
+@app.get("/analytics/recent")
+def analytics_recent(limit: int = 10):
+    return get_recent_requests(limit=limit)
 
 
 @app.post("/infer")
