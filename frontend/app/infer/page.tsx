@@ -61,6 +61,14 @@ export default function InferPage() {
       setLoading(false);
     }
   }
+  function resetForm() {
+  setPrompt("");
+  setTaskType("general");
+  setPriority("balanced");
+  setError("");
+  setResult(null);
+}
+  
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900 p-8">
@@ -148,41 +156,59 @@ export default function InferPage() {
         )}
 
         {result && (
-          <section className="rounded-2xl bg-white shadow-sm border border-slate-200 p-6 space-y-6">
+            <section className="rounded-2xl bg-white shadow-sm border border-slate-200 p-6 space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <h2 className="text-xl font-semibold">Inference Result</h2>
 
+            <div className="flex gap-3">
+                <button
+                onClick={resetForm}
+                className="px-4 py-2 rounded-xl border border-slate-300 bg-white text-slate-900 hover:bg-slate-100 transition"
+                >
+                Run Another Request
+                </button>
+
+                <Link
+                href="/"
+                className="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 transition"
+                >
+                View Dashboard
+                </Link>
+            </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <InfoCard label="Request ID" value={result.request_id} />
-              <InfoCard label="Route Key" value={result.route_key} />
-              <InfoCard label="Route Reason" value={result.route_reason} />
-              <InfoCard label="Model Used" value={result.model_used} />
-              <InfoCard label="Task Type" value={result.task_type || "-"} />
-              <InfoCard label="Priority" value={result.priority || "-"} />
-              <InfoCard
+            <InfoCard label="Request ID" value={result.request_id} />
+            <InfoCard label="Route Key" value={result.route_key} />
+            <InfoCard label="Route Reason" value={result.route_reason} />
+            <InfoCard label="Model Used" value={result.model_used} />
+            <InfoCard label="Task Type" value={result.task_type || "-"} />
+            <InfoCard label="Priority" value={result.priority || "-"} />
+            <InfoCard
                 label="Estimated Input Tokens"
                 value={String(result.estimated_input_tokens)}
-              />
-              <InfoCard
+            />
+            <InfoCard
                 label="Estimated Output Tokens"
                 value={String(result.estimated_output_tokens)}
-              />
-              <InfoCard
+            />
+            <InfoCard
                 label="Estimated Cost"
                 value={`$${result.estimated_cost_usd.toFixed(6)}`}
-              />
-              <InfoCard
+            />
+            <InfoCard
                 label="Latency"
                 value={`${result.latency_ms.toFixed(2)} ms`}
-              />
+            />
             </div>
 
             <div>
-              <h3 className="text-lg font-semibold mb-2">Response</h3>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 whitespace-pre-wrap leading-7">
+            <h3 className="text-lg font-semibold mb-2">Response</h3>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 whitespace-pre-wrap leading-7">
                 {result.response}
-              </div>
             </div>
-          </section>
+            </div>
+        </section>
         )}
       </div>
     </main>
