@@ -71,6 +71,37 @@ function formatLatency(value: number) {
   return `${value.toFixed(2)} ms`;
 }
 
+
+
+function getRouteBadgeClass(route: string) {
+  switch (route) {
+    case "cheap":
+      return "bg-slate-100 text-slate-700";
+    case "medium":
+      return "bg-blue-100 text-blue-700";
+    case "strong":
+      return "bg-slate-900 text-white";
+    default:
+      return "bg-slate-100 text-slate-700";
+  }
+}
+
+function getPriorityBadgeClass(priority: string) {
+  switch (priority) {
+    case "cheap":
+      return "bg-emerald-100 text-emerald-700";
+    case "balanced":
+      return "bg-blue-100 text-blue-700";
+    case "quality":
+      return "bg-purple-100 text-purple-700";
+    case "fast":
+      return "bg-amber-100 text-amber-700";
+    default:
+      return "bg-slate-100 text-slate-700";
+  }
+}
+
+
 export default function Home() {
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [routes, setRoutes] = useState<RouteData[]>([]);
@@ -283,9 +314,29 @@ export default function Home() {
                 {recentRequests.map((row) => (
                   <tr key={row.request_id} className="border-b border-slate-100">
                     <td className="py-3 pr-4">{row.task_type || "-"}</td>
-                    <td className="py-3 pr-4">{row.priority || "-"}</td>
-                    <td className="py-3 pr-4">{row.route_key}</td>
-                    <td className="py-3 pr-4 break-all">
+                    <td className="py-3 pr-4">
+                      {row.priority ? (
+                        <span
+                          className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${getPriorityBadgeClass(
+                            row.priority
+                          )}`}
+                        >
+                          {row.priority}
+                        </span>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+                    <td className="py-3 pr-4">
+                      <span
+                        className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${getRouteBadgeClass(
+                          row.route_key
+                        )}`}
+                      >
+                        {row.route_key}
+                      </span>
+                    </td>
+                    <td className="py-3 pr-4">
                       {formatModelLabel(row.model_used)}
                     </td>
                     <td className="py-3 pr-4">
