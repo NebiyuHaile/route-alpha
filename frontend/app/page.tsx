@@ -386,47 +386,53 @@ export default function Home() {
                 </tr>
               </thead>
               <tbody>
-                {filteredRecentRequests.map((row) => (
-                  <tr key={row.request_id} className="border-b border-slate-100">
-                    <td className="py-3 pr-4">{row.task_type || "-"}</td>
-                    <td className="py-3 pr-4">
-                      {row.priority ? (
+                {filteredRecentRequests.length > 0 ? (
+                  filteredRecentRequests.map((row) => (
+                    <tr key={row.request_id} className="border-b border-slate-100">
+                      <td className="py-3 pr-4">{row.task_type || "-"}</td>
+
+                      <td className="py-3 pr-4">
+                        {row.priority ? (
+                          <span
+                            className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${getPriorityBadgeClass(
+                              row.priority
+                            )}`}
+                          >
+                            {row.priority}
+                          </span>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+
+                      <td className="py-3 pr-4">
                         <span
-                          className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${getPriorityBadgeClass(
-                            row.priority
+                          className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${getRouteBadgeClass(
+                            row.route_key
                           )}`}
                         >
-                          {row.priority}
+                          {row.route_key}
                         </span>
-                      ) : (
-                        "-"
-                      )}
-                    </td>
-                    <td className="py-3 pr-4">
-                      <span
-                        className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${getRouteBadgeClass(
-                          row.route_key
-                        )}`}
-                      >
-                        {row.route_key}
-                      </span>
-                    </td>
-                    <td className="py-3 pr-4">
-                      {formatModelLabel(row.model_used)}
-                    </td>
-                    <td className="py-3 pr-4">
-                      {formatCost(row.estimated_cost_usd)}
-                    </td>
-                    <td className="py-3 pr-4">
-                      {formatLatency(row.latency_ms)}
-                    </td>
-                    <td className="py-3 pr-4">
-                      {row.created_at
-                        ? new Date(row.created_at).toLocaleString()
-                        : "-"}
+                      </td>
+
+                      <td className="py-3 pr-4">{formatModelLabel(row.model_used)}</td>
+
+                      <td className="py-3 pr-4">{formatCost(row.estimated_cost_usd)}</td>
+
+                      <td className="py-3 pr-4">{formatLatency(row.latency_ms)}</td>
+
+                      <td className="py-3 pr-4">
+                        {row.created_at ? new Date(row.created_at).toLocaleString() : "-"}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={7} className="py-10 text-center text-slate-500">
+                      No requests match the current filters.
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
