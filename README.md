@@ -20,6 +20,7 @@ Instead of sending every request to the same model, RouteAlpha routes prompts ac
 - frontend dashboard with charts and recent requests table
 - frontend inference page for prompt submission
 - shared navigation between dashboard and inference pages
+- recent requests filtering, search, and row limit controls
 
 ## Tech Stack
 
@@ -46,6 +47,7 @@ The project currently supports:
 ## App Pages
 
 ### Dashboard
+
 The dashboard shows:
 - total requests
 - average latency
@@ -57,6 +59,7 @@ The dashboard shows:
 - recent requests table
 
 ### Inference
+
 The inference page allows users to:
 - enter a prompt
 - choose task type
@@ -70,10 +73,12 @@ The inference page allows users to:
 route-alpha/
 ├── README.md
 ├── backend/
+│   ├── README.md
 │   ├── app/
 │   ├── requirements.txt
 │   └── .env
 └── frontend/
+    ├── README.md
     ├── app/
     ├── components/
     ├── package.json
