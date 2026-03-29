@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
+import Navbar from "../../components/Navbar";
 
 type InferenceResult = {
   request_id: string;
@@ -71,6 +72,10 @@ export default function InferPage() {
   
 
   return (
+  <>
+    <Navbar />
+    <main className="min-h-screen bg-slate-50 text-slate-900 p-8">
+      <div className="max-w-4xl mx-auto space-y-8">
     <main className="min-h-screen bg-slate-50 text-slate-900 p-8">
       <div className="max-w-4xl mx-auto space-y-8">
         <div className="flex items-center justify-between gap-4">
@@ -80,13 +85,6 @@ export default function InferPage() {
               Submit a prompt and see how RouteAlpha routes it.
             </p>
           </div>
-
-          <Link
-            href="/"
-            className="px-4 py-2 rounded-xl bg-slate-900 text-white"
-          >
-            Back to Dashboard
-          </Link>
         </div>
 
         <section className="rounded-2xl bg-white shadow-sm border border-slate-200 p-6">
@@ -212,6 +210,9 @@ export default function InferPage() {
         )}
       </div>
     </main>
+    </div>
+    </main>
+    </>
   );
 }
 

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import Navbar from "../components/Navbar";
 import {
   BarChart,
   Bar,
@@ -236,6 +237,10 @@ export default function Home() {
   }
 
   return (
+  <>
+    <Navbar />
+    <main className="min-h-screen bg-slate-50 text-slate-900 p-8">
+      <div className="max-w-7xl mx-auto space-y-8">
     <main className="min-h-screen bg-slate-50 text-slate-900 p-8">
       <div className="max-w-7xl mx-auto space-y-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -245,24 +250,8 @@ export default function Home() {
               Analytics overview for model routing, cost, and latency.
             </p>
           </div>
-
-          <div className="flex gap-3">
-            <Link
-              href="/infer"
-              className="px-4 py-2 rounded-xl border border-slate-300 bg-white text-slate-900 hover:bg-slate-100 transition"
-            >
-              Go to Inference
-            </Link>
-
-            <button
-              onClick={() => loadDashboard(true)}
-              disabled={refreshing}
-              className="px-4 py-2 rounded-xl bg-slate-900 text-white disabled:opacity-60 hover:bg-slate-800 transition"
-            >
-              {refreshing ? "Refreshing..." : "Refresh Data"}
-            </button>
-          </div>
         </div>
+          
 
         <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card
@@ -416,6 +405,9 @@ export default function Home() {
         </section>
       </div>
     </main>
+    </div>
+    </main>
+    </>
   );
 }
 
