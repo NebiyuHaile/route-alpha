@@ -1,148 +1,28 @@
-# RouteAlpha Backend
+# RouteAlpha
 
-This README focuses only on the backend service inside the `backend/` directory.
+RouteAlpha is a full-stack AI inference routing platform that selects a model route based on request complexity, task type, and user priority. The project is designed to evolve into a startup-style AI systems platform focused on balancing cost, speed, and quality across model calls.
 
-## What the backend currently does
+## Overview
 
-The backend currently handles:
+Instead of sending every request to the same model, RouteAlpha routes prompts across different model paths such as `cheap`, `medium`, and `strong`. The current version includes a working backend API, PostgreSQL logging, analytics endpoints, a frontend dashboard, and a frontend inference page.
 
-- health checking
-- inference routing
-- real model calls
+## Current Features
+
+- FastAPI backend
+- real model inference through LiteLLM and OpenRouter
+- rule-based routing by task type, prompt length, and priority
+- route reasoning returned in API responses
+- latency measurement
 - token estimation
 - cost estimation
-- PostgreSQL logging
-- analytics queries
+- PostgreSQL request logging
+- analytics summary and breakdown endpoints
+- frontend dashboard with charts and recent requests table
+- frontend inference page for prompt submission
+- shared navigation between dashboard and inference pages
+- recent requests filtering, search, and row limit controls
 
-## Current Endpoints
-
-### `GET /health`
-Confirms that the backend service is running.
-
-### `POST /infer`
-Accepts a request body with:
-
-- `prompt`
-- `task_type`
-- `priority`
-
-The endpoint then:
-
-1. chooses a route using rule-based logic
-2. calls a real model through LiteLLM and OpenRouter
-3. estimates token usage and request cost
-4. saves the request to PostgreSQL
-5. returns the response and metadata
-
-### `GET /analytics/summary`
-Returns:
-
-- total requests
-- average latency
-- total estimated cost
-
-### `GET /analytics/routes`
-Returns route usage counts grouped by `route_key`.
-
-### `GET /analytics/models`
-Returns model usage counts grouped by `model_used`.
-
-## Backend File Map
-
-### `app/main.py`
-FastAPI entry point and route definitions.
-
-### `app/schemas.py`
-Request schema definitions used by the API.
-
-### `app/config.py`
-Environment loading, API keys, database URL, and model catalog configuration.
-
-### `app/router.py`
-Rule-based routing logic for cheap, medium, and strong routes.
-
-### `app/llm_service.py`
-Model call logic through LiteLLM, including latency, token, and cost metadata.
-
-### `app/token_utils.py`
-Helper function used to estimate token counts.
-
-### `app/pricing.py`
-Pricing values used to estimate request cost.
-
-### `app/database.py`
-SQLAlchemy engine, session, and base setup.
-
-### `app/models.py`
-Database model definitions, including the `InferenceLog` table.
-
-### `app/analytics.py`
-Analytics query functions for summaries and breakdowns.
-
-## Backend Structure
-
-```bash
-backend/
-├── .env
-├── README.md
-├── requirements.txt
-└── app/
-    ├── main.py
-    ├── schemas.py
-    ├── config.py
-    ├── router.py
-    ├── llm_service.py
-    ├── token_utils.py
-    ├── pricing.py
-    ├── database.py
-    ├── models.py
-    └── analytics.py
-```
-
-## Environment Variables
-
-The backend currently uses:
-
-```env
-OPENROUTER_API_KEY=your_openrouter_api_key_here
-DATABASE_URL=postgresql://postgres:your_password_here@localhost:5432/routealpha_db
-```
-
-## Running the backend locally
-
-### 1. Move into the backend folder
-
-```bash
-cd backend
-```
-
-### 2. Create and activate a virtual environment
-
-#### Windows PowerShell
-```bash
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-```
-
-### 3. Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 4. Start the backend service
-
-```bash
-uvicorn app.main:app --reload
-```
-
-### 5. Open the docs
-
-```text
-http://127.0.0.1:8000/docs
-```
-
-## Current Backend Tech Stack
+## Tech Stack
 
 - Python
 - FastAPI
@@ -150,22 +30,56 @@ http://127.0.0.1:8000/docs
 - OpenRouter
 - PostgreSQL
 - SQLAlchemy
-- Pydantic
-- Uvicorn
-- python-dotenv
+- Next.js
+- TypeScript
+- Tailwind CSS
+- Recharts
 
-## Current Backend Milestones Reached
+## Current Status
 
-- backend server created and running
-- real model inference connected
-- route selection logic added
-- token and cost estimation added
-- PostgreSQL request logging added
-- analytics summary and breakdown endpoints added
+The project currently supports:
+- `GET /health`
+- `POST /infer`
+- analytics endpoints for summaries and breakdowns
+- a dashboard page for analytics visualization
+- an inference page for manual prompt submission
 
-## Next Backend Steps
+## App Pages
 
-- add cost breakdown endpoint
-- add latency breakdown endpoint
-- test route and model analytics with more records
-- prepare data for a frontend dashboard
+### Dashboard
+
+The dashboard shows:
+- total requests
+- average latency
+- total estimated cost
+- route breakdown
+- model breakdown
+- cost by model
+- latency by model
+- recent requests table
+
+### Inference
+
+The inference page allows users to:
+- enter a prompt
+- choose task type
+- choose priority
+- submit an inference request
+- view route details, model used, token estimates, cost, latency, and response text
+
+## Project Structure
+
+```bash
+route-alpha/
+├── README.md
+├── backend/
+│   ├── README.md
+│   ├── app/
+│   ├── requirements.txt
+│   └── .env
+└── frontend/
+    ├── README.md
+    ├── app/
+    ├── components/
+    ├── package.json
+    └── .env.local
