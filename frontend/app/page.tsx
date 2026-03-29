@@ -108,6 +108,7 @@ export default function Home() {
   const [routes, setRoutes] = useState<RouteData[]>([]);
   const [selectedRoute, setSelectedRoute] = useState("all");
   const [models, setModels] = useState<ModelData[]>([]);
+  const [selectedModel, setSelectedModel] = useState("all");
   const [costs, setCosts] = useState<CostData[]>([]);
   const [latency, setLatency] = useState<LatencyData[]>([]);
   const [recentRequests, setRecentRequests] = useState<RecentRequest[]>([]);
@@ -200,6 +201,11 @@ export default function Home() {
   const filteredRecentRequests = recentRequests
     .filter((row) =>
       selectedRoute === "all" ? true : row.route_key === selectedRoute
+    )
+    .filter((row) =>
+      selectedModel === "all"
+        ? true
+        : formatModelLabel(row.model_used) === selectedModel
     )
     .filter((row) => {
       const searchValue = searchTerm.toLowerCase();
@@ -302,48 +308,70 @@ export default function Home() {
         </section>
 
         <section className="rounded-2xl bg-white shadow-sm border border-slate-200 p-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-slate-600">Route</label>
-              <select
-                value={selectedRoute}
-                onChange={(e) => setSelectedRoute(e.target.value)}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white"
-              >
-                <option value="all">all</option>
-                <option value="cheap">cheap</option>
-                <option value="medium">medium</option>
-                <option value="strong">strong</option>
-              </select>
-            </div>
+          <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 mb-4">
+            <h2 className="text-xl font-semibold">Recent Requests</h2>
 
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-slate-600">Show</label>
-              <select
-                value={recentLimit}
-                onChange={(e) => setRecentLimit(Number(e.target.value))}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white"
-              >
-                <option value={5}>5</option>
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-              </select>
-              <span className="text-sm text-slate-600">rows</span>
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium uppercase tracking-wide text-slate-800">
+                  Route
+                </label>
+                <select
+                  value={selectedRoute}
+                  onChange={(e) => setSelectedRoute(e.target.value)}
+                  className="h-10 rounded-lg border border-slate-300 px-3 text-sm bg-white min-w-30"
+                >
+                  <option value="all">all</option>
+                  <option value="cheap">cheap</option>
+                  <option value="medium">medium</option>
+                  <option value="strong">strong</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium uppercase tracking-wide text-slate-800">
+                  Model
+                </label>
+                <select
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  className="h-10 rounded-lg border border-slate-300 px-3 text-sm bg-white min-w-40"
+                >
+                  <option value="all">all</option>
+                  <option value="gemini-flash-lite">gemini-flash-lite</option>
+                  <option value="gpt-4o-mini">gpt-4o-mini</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium uppercase tracking-wide text-slate-800">
+                  Show
+                </label>
+                <select
+                  value={recentLimit}
+                  onChange={(e) => setRecentLimit(Number(e.target.value))}
+                  className="h-10 rounded-lg border border-slate-300 px-3 text-sm bg-white min-w-22.5"
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium uppercase tracking-wide text-slate-800">
+                  Search
+                </label>
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="task, route, model..."
+                  className="h-10 rounded-lg border border-slate-300 px-3 text-sm bg-white min-w-60"
+                />
+              </div>
             </div>
           </div>
-
-          <div className="flex items-center gap-2">
-
-            <label className="text-sm text-slate-600">Search</label>
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="task, route, model..."
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white"
-            />
-          </div>
-
             <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
