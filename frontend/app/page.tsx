@@ -111,6 +111,7 @@ export default function Home() {
   const [latency, setLatency] = useState<LatencyData[]>([]);
   const [recentRequests, setRecentRequests] = useState<RecentRequest[]>([]);
   const [recentLimit, setRecentLimit] = useState(10);
+  const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -195,10 +196,20 @@ export default function Home() {
     full_label: item.model_used,
   }));
 
-  const filteredRecentRequests =
-  selectedRoute === "all"
-    ? recentRequests
-    : recentRequests.filter((row) => row.route_key === selectedRoute);
+  const filteredRecentRequests = recentRequests
+    .filter((row) =>
+      selectedRoute === "all" ? true : row.route_key === selectedRoute
+    )
+    .filter((row) => {
+      const searchValue = searchTerm.toLowerCase();
+
+      return (
+        (row.task_type || "").toLowerCase().includes(searchValue) ||
+        (row.priority || "").toLowerCase().includes(searchValue) ||
+        row.route_key.toLowerCase().includes(searchValue) ||
+        row.model_used.toLowerCase().includes(searchValue)
+      );
+    });
 
   if (loading) {
     return (
@@ -330,6 +341,18 @@ export default function Home() {
               </select>
               <span className="text-sm text-slate-600">rows</span>
             </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+
+            <label className="text-sm text-slate-600">Search</label>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="task, route, model..."
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white"
+            />
           </div>
 
             <div className="overflow-x-auto">
