@@ -105,10 +105,12 @@ function getPriorityBadgeClass(priority: string) {
 export default function Home() {
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [routes, setRoutes] = useState<RouteData[]>([]);
+  const [selectedRoute, setSelectedRoute] = useState("all");
   const [models, setModels] = useState<ModelData[]>([]);
   const [costs, setCosts] = useState<CostData[]>([]);
   const [latency, setLatency] = useState<LatencyData[]>([]);
   const [recentRequests, setRecentRequests] = useState<RecentRequest[]>([]);
+  const [recentLimit, setRecentLimit] = useState(10);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -136,7 +138,7 @@ export default function Home() {
         fetch(`${API_BASE_URL}/analytics/models`, { cache: "no-store" }),
         fetch(`${API_BASE_URL}/analytics/costs`, { cache: "no-store" }),
         fetch(`${API_BASE_URL}/analytics/latency`, { cache: "no-store" }),
-        fetch(`${API_BASE_URL}/analytics/recent`, { cache: "no-store" }),
+        fetch(`${API_BASE_URL}/analytics/recent?limit=${recentLimit}`, {cache: "no-store",}),
       ]);
 
       if (
@@ -169,7 +171,7 @@ export default function Home() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [recentLimit]);
 
   useEffect(() => {
     loadDashboard();
@@ -192,6 +194,11 @@ export default function Home() {
     short_label: formatModelLabel(item.model_used),
     full_label: item.model_used,
   }));
+
+  const filteredRecentRequests =
+  selectedRoute === "all"
+    ? recentRequests
+    : recentRequests.filter((row) => row.route_key === selectedRoute);
 
   if (loading) {
     return (
@@ -295,9 +302,37 @@ export default function Home() {
         </section>
 
         <section className="rounded-2xl bg-white shadow-sm border border-slate-200 p-6">
-          <h2 className="text-xl font-semibold mb-4">Recent Requests</h2>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-slate-600">Route</label>
+              <select
+                value={selectedRoute}
+                onChange={(e) => setSelectedRoute(e.target.value)}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white"
+              >
+                <option value="all">all</option>
+                <option value="cheap">cheap</option>
+                <option value="medium">medium</option>
+                <option value="strong">strong</option>
+              </select>
+            </div>
 
-          <div className="overflow-x-auto">
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-slate-600">Show</label>
+              <select
+                value={recentLimit}
+                onChange={(e) => setRecentLimit(Number(e.target.value))}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white"
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+              </select>
+              <span className="text-sm text-slate-600">rows</span>
+            </div>
+          </div>
+
+            <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-left">
@@ -311,7 +346,7 @@ export default function Home() {
                 </tr>
               </thead>
               <tbody>
-                {recentRequests.map((row) => (
+                {filteredRecentRequests.map((row) => (
                   <tr key={row.request_id} className="border-b border-slate-100">
                     <td className="py-3 pr-4">{row.task_type || "-"}</td>
                     <td className="py-3 pr-4">
