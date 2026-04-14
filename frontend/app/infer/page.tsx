@@ -21,6 +21,12 @@ type InferenceResult = {
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
 
+const PROMPT_PRESETS = [
+  "Summarize the tradeoffs between GPT-4o mini and Gemini Flash Lite for customer support routing.",
+  "Write a concise onboarding email for a new SaaS user with a friendly but professional tone.",
+  "Explain how to optimize a slow SQL query and include a simple example.",
+];
+
 export default function InferPage() {
   const [prompt, setPrompt] = useState("");
   const [taskType, setTaskType] = useState("general");
@@ -62,167 +68,219 @@ export default function InferPage() {
       setLoading(false);
     }
   }
+
   function resetForm() {
-  setPrompt("");
-  setTaskType("general");
-  setPriority("balanced");
-  setError("");
-  setResult(null);
-}
-  
+    setPrompt("");
+    setTaskType("general");
+    setPriority("balanced");
+    setError("");
+    setResult(null);
+  }
 
   return (
-  <>
-    <Navbar />
-    <main className="min-h-screen bg-slate-50 text-slate-900 p-8">
-      <div className="max-w-4xl mx-auto space-y-8">
-    <main className="min-h-screen bg-slate-50 text-slate-900 p-8">
-      <div className="max-w-4xl mx-auto space-y-8">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-4xl font-bold">RouteAlpha Inference</h1>
-            <p className="text-slate-600 mt-2">
-              Submit a prompt and see how RouteAlpha routes it.
-            </p>
-          </div>
-        </div>
-
-        <section className="rounded-2xl bg-white shadow-sm border border-slate-200 p-6">
-          <h2 className="text-xl font-semibold mb-4">New Request</h2>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Prompt</label>
-              <textarea
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Enter your prompt here..."
-                className="w-full min-h-45 rounded-xl border border-slate-300 p-4 outline-none focus:ring-2 focus:ring-slate-400"
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Task Type
-                </label>
-                <select
-                  value={taskType}
-                  onChange={(e) => setTaskType(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 p-3 outline-none focus:ring-2 focus:ring-slate-400"
-                >
-                  <option value="general">general</option>
-                  <option value="education">education</option>
-                  <option value="coding">coding</option>
-                  <option value="reasoning">reasoning</option>
-                </select>
+    <>
+      <Navbar />
+      <main className="min-h-screen p-8 text-slate-900">
+        <div className="mx-auto max-w-5xl space-y-8">
+          <section className="rounded-[2rem] border border-white/70 bg-white/85 p-8 shadow-[0_20px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur-sm">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+              <div className="max-w-2xl">
+                <p className="text-xs font-semibold uppercase tracking-[0.26em] text-slate-400">
+                  Live Playground
+                </p>
+                <h1 className="mt-3 text-4xl font-bold tracking-tight">
+                  Route prompts through the stack with a cleaner operator workflow.
+                </h1>
+                <p className="mt-3 text-base leading-7 text-slate-600">
+                  Submit a prompt, test different priorities, and immediately inspect
+                  the route, latency, model choice, and estimated cost.
+                </p>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Priority
-                </label>
-                <select
-                  value={priority}
-                  onChange={(e) => setPriority(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 p-3 outline-none focus:ring-2 focus:ring-slate-400"
-                >
-                  <option value="cheap">cheap</option>
-                  <option value="balanced">balanced</option>
-                  <option value="quality">quality</option>
-                  <option value="fast">fast</option>
-                </select>
+              <div className="flex flex-wrap gap-3 lg:max-w-md lg:justify-end">
+                <MiniStat label="Mode" value="Realtime" />
+                <MiniStat label="Routing" value="Rule-based" />
+                <MiniStat label="Visibility" value="Cost + Latency" />
               </div>
             </div>
-
-            <button
-              type="submit"
-              disabled={loading || !prompt.trim()}
-              className="px-5 py-3 rounded-xl bg-slate-900 text-white disabled:opacity-60"
-            >
-              {loading ? "Submitting..." : "Run Inference"}
-            </button>
-          </form>
-        </section>
-
-        {error && (
-          <section className="rounded-2xl bg-white shadow-sm border border-red-200 p-6">
-            <h2 className="text-lg font-semibold text-red-600 mb-2">Error</h2>
-            <p className="text-red-600">{error}</p>
           </section>
-        )}
 
-        {result && (
-            <section className="rounded-2xl bg-white shadow-sm border border-slate-200 p-6 space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <h2 className="text-xl font-semibold">Inference Result</h2>
+          <section className="rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-[0_20px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur-sm">
+            <div className="mb-5 flex flex-col gap-2">
+              <h2 className="text-xl font-semibold">New Request</h2>
+              <p className="text-sm text-slate-500">
+                Start from a preset or write your own prompt to see how RouteAlpha
+                chooses a model.
+              </p>
+            </div>
 
-            <div className="flex gap-3">
+            <div className="mb-5 flex flex-wrap gap-3">
+              {PROMPT_PRESETS.map((preset) => (
                 <button
-                onClick={resetForm}
-                className="px-4 py-2 rounded-xl border border-slate-300 bg-white text-slate-900 hover:bg-slate-100 transition"
+                  key={preset}
+                  type="button"
+                  onClick={() => setPrompt(preset)}
+                  className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-left text-sm text-slate-600 hover:border-slate-300 hover:bg-white hover:text-slate-900"
                 >
-                Run Another Request
+                  {preset}
                 </button>
+              ))}
+            </div>
 
-                <Link
-                href="/"
-                className="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 transition"
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div>
+                <label className="mb-2 block text-sm font-medium">Prompt</label>
+                <textarea
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  placeholder="Enter your prompt here..."
+                  className="min-h-52 w-full rounded-2xl border border-slate-300 bg-white p-4 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-sm font-medium">Task Type</label>
+                  <select
+                    value={taskType}
+                    onChange={(e) => setTaskType(e.target.value)}
+                    className="w-full rounded-2xl border border-slate-300 bg-white p-3 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100"
+                  >
+                    <option value="general">general</option>
+                    <option value="education">education</option>
+                    <option value="coding">coding</option>
+                    <option value="reasoning">reasoning</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium">Priority</label>
+                  <select
+                    value={priority}
+                    onChange={(e) => setPriority(e.target.value)}
+                    className="w-full rounded-2xl border border-slate-300 bg-white p-3 outline-none focus:border-blue-300 focus:ring-4 focus:ring-blue-100"
+                  >
+                    <option value="cheap">cheap</option>
+                    <option value="balanced">balanced</option>
+                    <option value="quality">quality</option>
+                    <option value="fast">fast</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <button
+                  type="submit"
+                  disabled={loading || !prompt.trim()}
+                  className="inline-flex h-12 items-center justify-center rounded-2xl bg-slate-900 px-5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                View Dashboard
-                </Link>
-            </div>
-            </div>
+                  {loading ? "Submitting..." : "Run Inference"}
+                </button>
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="inline-flex h-12 items-center justify-center rounded-2xl border border-slate-300 bg-white px-5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  Reset
+                </button>
+              </div>
+            </form>
+          </section>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <InfoCard label="Request ID" value={result.request_id} />
-            <InfoCard label="Route Key" value={result.route_key} />
-            <InfoCard label="Route Reason" value={result.route_reason} />
-            <InfoCard label="Model Used" value={result.model_used} />
-            <InfoCard label="Task Type" value={result.task_type || "-"} />
-            <InfoCard label="Priority" value={result.priority || "-"} />
-            <InfoCard
-                label="Estimated Input Tokens"
-                value={String(result.estimated_input_tokens)}
-            />
-            <InfoCard
-                label="Estimated Output Tokens"
-                value={String(result.estimated_output_tokens)}
-            />
-            <InfoCard
-                label="Estimated Cost"
-                value={`$${result.estimated_cost_usd.toFixed(6)}`}
-            />
-            <InfoCard
-                label="Latency"
-                value={`${result.latency_ms.toFixed(2)} ms`}
-            />
-            </div>
+          {error && (
+            <section className="rounded-[2rem] border border-red-200 bg-red-50/90 p-6 shadow-[0_20px_60px_-30px_rgba(239,68,68,0.22)]">
+              <h2 className="mb-2 text-lg font-semibold text-red-600">Error</h2>
+              <p className="text-red-600">{error}</p>
+            </section>
+          )}
 
-            <div>
-            <h3 className="text-lg font-semibold mb-2">Response</h3>
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 whitespace-pre-wrap leading-7">
-                {result.response}
-            </div>
-            </div>
-        </section>
-        )}
-      </div>
-    </main>
-    </div>
-    </main>
+          {result && (
+            <section className="space-y-6 rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-[0_20px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur-sm">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold">Inference Result</h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Review the selected route, model, and response metadata for this run.
+                  </p>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={resetForm}
+                    className="rounded-2xl border border-slate-300 bg-white px-4 py-2 text-slate-900 hover:bg-slate-50"
+                  >
+                    Run Another Request
+                  </button>
+
+                  <Link
+                    href="/"
+                    className="rounded-2xl bg-slate-900 px-4 py-2 text-white hover:bg-slate-800"
+                  >
+                    View Dashboard
+                  </Link>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
+                <InfoCard label="Request ID" value={result.request_id} />
+                <InfoCard label="Route Key" value={result.route_key} />
+                <InfoCard label="Route Reason" value={result.route_reason} />
+                <InfoCard label="Model Used" value={result.model_used} />
+                <InfoCard label="Task Type" value={result.task_type || "-"} />
+                <InfoCard label="Priority" value={result.priority || "-"} />
+                <InfoCard
+                  label="Estimated Input Tokens"
+                  value={String(result.estimated_input_tokens)}
+                />
+                <InfoCard
+                  label="Estimated Output Tokens"
+                  value={String(result.estimated_output_tokens)}
+                />
+                <InfoCard
+                  label="Estimated Cost"
+                  value={`$${result.estimated_cost_usd.toFixed(6)}`}
+                />
+                <InfoCard
+                  label="Latency"
+                  value={`${result.latency_ms.toFixed(2)} ms`}
+                />
+              </div>
+
+              <div>
+                <h3 className="mb-2 text-lg font-semibold">Response</h3>
+                <div className="whitespace-pre-wrap rounded-2xl border border-slate-200 bg-slate-50 p-4 leading-7">
+                  {result.response}
+                </div>
+              </div>
+            </section>
+          )}
+        </div>
+      </main>
     </>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-[148px] flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 sm:flex-none">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+        {label}
+      </p>
+      <p className="mt-2 text-[1.05rem] font-semibold leading-7 text-slate-900">
+        {value}
+      </p>
+    </div>
   );
 }
 
 function InfoCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-slate-200 p-4 bg-slate-50">
-      <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <p className="mb-1 text-xs uppercase tracking-wide text-slate-500">
         {label}
       </p>
-      <p className="break-all">{value}</p>
+      <p className="break-all text-slate-900">{value}</p>
     </div>
   );
 }

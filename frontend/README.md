@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# RouteAlpha Frontend
 
-## Getting Started
+The frontend is a Next.js dashboard and inference workspace for RouteAlpha.
 
-First, run the development server:
+## What It Includes
+
+- analytics summary cards for request volume, latency, and estimated cost
+- chart views for route distribution, model usage, cost by model, and latency by model
+- polished custom chart tooltips and dashboard insight cards
+- a recent requests table with loading states, empty states, filtering, searching, and sortable columns
+- an inference playground for running prompts against the backend and reviewing routing metadata
+
+## Local Development
 
 ```bash
+cd frontend
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```text
+http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Environment
 
-## Learn More
+Create `frontend/.env.local` with:
 
-To learn more about Next.js, take a look at the following resources:
+```env
+NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Key Files
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `app/page.tsx`: dashboard experience and analytics UI
+- `app/infer/page.tsx`: inference submission flow and response review
+- `app/layout.tsx`: app metadata and shared shell setup
+- `app/globals.css`: global visual styling and base theme
+- `components/Navbar.tsx`: shared top navigation
 
-## Deploy on Vercel
+## Design Direction
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The current UI is intentionally built around:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- bright, editorial-style surfaces instead of plain flat white panels
+- glassy layered cards with soft shadows and clearer spacing
+- high-signal empty/loading states for operational clarity
+- dashboard interactions that feel productized rather than default-library
+
+## Validation
+
+For a quick frontend lint check:
+
+```bash
+npx eslint app/page.tsx app/infer/page.tsx components/Navbar.tsx
+```

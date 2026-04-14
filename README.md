@@ -1,171 +1,117 @@
-# RouteAlpha Backend
+# RouteAlpha
 
-This README focuses only on the backend service inside the `backend/` directory.
+RouteAlpha is a lightweight LLM routing workspace with two parts:
 
-## What the backend currently does
+- a FastAPI backend that routes live inference requests, estimates cost, and logs request metadata
+- a Next.js frontend that visualizes request activity, model usage, latency, and routing behavior
 
-The backend currently handles:
+## Product Snapshot
 
-- health checking
-- inference routing
-- real model calls
-- token estimation
-- cost estimation
-- PostgreSQL logging
-- analytics queries
+The current app includes:
 
-## Current Endpoints
+- a dashboard with summary cards, route and model charts, recent request search/filtering, empty states, and sortable columns
+- custom chart tooltips and higher-signal insight cards for route, usage, and latency trends
+- an inference playground for submitting prompts and reviewing route selection, model choice, cost, and latency
+- PostgreSQL-backed analytics for request history and aggregate metrics
 
-### `GET /health`
-Confirms that the backend service is running.
+## Repository Structure
 
-### `POST /infer`
-Accepts a request body with:
+```text
+route-alpha/
+├── backend/
+│   ├── app/
+│   ├── requirements.txt
+│   └── .env
+├── frontend/
+│   ├── app/
+│   ├── components/
+│   ├── public/
+│   ├── package.json
+│   └── .env.local
+└── README.md
+```
 
-- `prompt`
-- `task_type`
-- `priority`
+## Running Locally
 
-The endpoint then:
-
-1. chooses a route using rule-based logic
-2. calls a real model through LiteLLM and OpenRouter
-3. estimates token usage and request cost
-4. saves the request to PostgreSQL
-5. returns the response and metadata
-
-### `GET /analytics/summary`
-Returns:
-
-- total requests
-- average latency
-- total estimated cost
-
-### `GET /analytics/routes`
-Returns route usage counts grouped by `route_key`.
-
-### `GET /analytics/models`
-Returns model usage counts grouped by `model_used`.
-
-## Backend File Map
-
-### `app/main.py`
-FastAPI entry point and route definitions.
-
-### `app/schemas.py`
-Request schema definitions used by the API.
-
-### `app/config.py`
-Environment loading, API keys, database URL, and model catalog configuration.
-
-### `app/router.py`
-Rule-based routing logic for cheap, medium, and strong routes.
-
-### `app/llm_service.py`
-Model call logic through LiteLLM, including latency, token, and cost metadata.
-
-### `app/token_utils.py`
-Helper function used to estimate token counts.
-
-### `app/pricing.py`
-Pricing values used to estimate request cost.
-
-### `app/database.py`
-SQLAlchemy engine, session, and base setup.
-
-### `app/models.py`
-Database model definitions, including the `InferenceLog` table.
-
-### `app/analytics.py`
-Analytics query functions for summaries and breakdowns.
-
-## Backend Structure
+### 1. Start the backend
 
 ```bash
-backend/
-├── .env
-├── README.md
-├── requirements.txt
-└── app/
-    ├── main.py
-    ├── schemas.py
-    ├── config.py
-    ├── router.py
-    ├── llm_service.py
-    ├── token_utils.py
-    ├── pricing.py
-    ├── database.py
-    ├── models.py
-    └── analytics.py
+cd backend
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+```
+
+Backend docs:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+### 2. Start the frontend
+
+In a separate terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend app:
+
+```text
+http://localhost:3000
 ```
 
 ## Environment Variables
 
-The backend currently uses:
+### Backend
 
 ```env
 OPENROUTER_API_KEY=your_openrouter_api_key_here
 DATABASE_URL=postgresql://postgres:your_password_here@localhost:5432/routealpha_db
 ```
 
-## Running the backend locally
+### Frontend
 
-### 1. Move into the backend folder
-
-```bash
-cd backend
+```env
+NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
 ```
 
-### 2. Create and activate a virtual environment
+## Backend API Highlights
 
-#### Windows PowerShell
-```bash
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-```
+- `GET /health`: health check
+- `POST /infer`: executes routing and returns inference metadata
+- `GET /analytics/summary`: total requests, average latency, total cost
+- `GET /analytics/routes`: route counts by route key
+- `GET /analytics/models`: model counts by model
+- `GET /analytics/costs`: aggregate cost by model
+- `GET /analytics/latency`: average latency by model
+- `GET /analytics/recent`: recent request history for the dashboard table
 
-### 3. Install dependencies
+## Tech Stack
 
-```bash
-pip install -r requirements.txt
-```
+### Frontend
 
-### 4. Start the backend service
+- Next.js App Router
+- React
+- Tailwind CSS
+- Recharts
 
-```bash
-uvicorn app.main:app --reload
-```
+### Backend
 
-### 5. Open the docs
-
-```text
-http://127.0.0.1:8000/docs
-```
-
-## Current Backend Tech Stack
-
-- Python
 - FastAPI
 - LiteLLM
 - OpenRouter
-- PostgreSQL
 - SQLAlchemy
+- PostgreSQL
 - Pydantic
-- Uvicorn
-- python-dotenv
 
-## Current Backend Milestones Reached
+## Notes
 
-- backend server created and running
-- real model inference connected
-- route selection logic added
-- token and cost estimation added
-- PostgreSQL request logging added
-- analytics summary and breakdown endpoints added
-
-## Next Backend Steps
-
-- add cost breakdown endpoint
-- add latency breakdown endpoint
-- test route and model analytics with more records
-- prepare data for a frontend dashboard
+- The dashboard assumes the backend is running and the database contains request records.
+- If the database is empty, the UI now shows dedicated empty states instead of a blank table.
+- The frontend README covers UI-focused details and workflows.
+- The backend README covers backend architecture and endpoints in more detail.
