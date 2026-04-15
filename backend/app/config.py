@@ -11,3 +11,9 @@ MODEL_CATALOG = {
     "medium": "openrouter/openai/gpt-4o-mini",
     "strong": "openrouter/openai/gpt-4o-mini"
 }
+
+FALLBACK_ROUTE_ORDER = {
+    "cheap": ["cheap", "medium", "strong"],
+    "medium": ["medium", "strong", "cheap"],
+    "strong": ["strong", "medium", "cheap"],
+}

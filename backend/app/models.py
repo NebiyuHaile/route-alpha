@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Text, Float, Integer, DateTime
+from sqlalchemy import Boolean, Column, String, Text, Float, Integer, DateTime
 from datetime import datetime, UTC
 from app.database import Base
 
@@ -11,6 +11,11 @@ class InferenceLog(Base):
     priority = Column(String, nullable=True)
     route_key = Column(String, nullable=False)
     route_reason = Column(Text, nullable=False)
+    resolved_route_key = Column(String, nullable=True)
+    fallback_used = Column(Boolean, nullable=False, default=False)
+    fallback_reason = Column(Text, nullable=True)
+    attempted_routes = Column(Text, nullable=True)
+    attempted_models = Column(Text, nullable=True)
     model_used = Column(String, nullable=False)
     estimated_input_tokens = Column(Integer, nullable=False)
     estimated_output_tokens = Column(Integer, nullable=False)

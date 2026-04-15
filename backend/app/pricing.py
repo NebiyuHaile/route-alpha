@@ -5,7 +5,7 @@ MODEL_PRICING = {
         "input_per_1k": 0.00010,
         "output_per_1k": 0.00040,
     },
-    "openrouter/openaI/gpt-4o-mini":{
+    "openrouter/openai/gpt-4o-mini":{
         "input_per_1k": 0.00010,
         "output_per_1k": 0.00040,
     },

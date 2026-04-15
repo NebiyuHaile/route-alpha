@@ -120,6 +120,8 @@ def get_recent_requests(limit: int = 10):
                 "task_type": row.task_type,
                 "priority": row.priority,
                 "route_key": row.route_key,
+                "resolved_route_key": row.resolved_route_key,
+                "fallback_used": bool(row.fallback_used),
                 "model_used": row.model_used,
                 "estimated_cost_usd": row.estimated_cost_usd,
                 "latency_ms": row.latency_ms,

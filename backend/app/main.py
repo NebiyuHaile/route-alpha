@@ -1,5 +1,8 @@
+import json
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import inspect, text
 from uuid import uuid4
 from app.schemas import InferenceRequest
 from app.router import choose_model
@@ -9,6 +12,28 @@ from app.models import InferenceLog
 from app.analytics import (get_summary_stats, get_route_breakdown, get_model_breakdown, get_cost_breakdown, get_latency_breakdown, get_recent_requests)
 
 Base.metadata.create_all(bind=engine)
+
+
+def ensure_inference_log_columns() -> None:
+    inspector = inspect(engine)
+    existing_columns = {column["name"] for column in inspector.get_columns("inference_logs")}
+    column_definitions = {
+        "resolved_route_key": "ALTER TABLE inference_logs ADD COLUMN resolved_route_key VARCHAR",
+        "fallback_used": "ALTER TABLE inference_logs ADD COLUMN fallback_used BOOLEAN DEFAULT FALSE",
+        "fallback_reason": "ALTER TABLE inference_logs ADD COLUMN fallback_reason TEXT",
+        "attempted_routes": "ALTER TABLE inference_logs ADD COLUMN attempted_routes TEXT",
+        "attempted_models": "ALTER TABLE inference_logs ADD COLUMN attempted_models TEXT",
+    }
+
+    with engine.begin() as connection:
+        for column_name, statement in column_definitions.items():
+            if column_name in existing_columns:
+                continue
+            connection.execute(text(statement))
+
+
+ensure_inference_log_columns()
+
 app = FastAPI(title="RouteAlpha API")
 app.add_middleware(
     CORSMiddleware,
@@ -71,6 +96,11 @@ def infer(request: InferenceRequest):
             priority=request.priority,
             route_key=route_key,
             route_reason=route_reason,
+            resolved_route_key=result["resolved_route_key"],
+            fallback_used=result["fallback_used"],
+            fallback_reason=result["fallback_reason"],
+            attempted_routes=json.dumps(result["attempted_routes"]),
+            attempted_models=json.dumps(result["attempted_models"]),
             model_used=result["model_used"],
             estimated_input_tokens=result["estimated_input_tokens"],
             estimated_output_tokens=result["estimated_output_tokens"],
@@ -83,9 +113,14 @@ def infer(request: InferenceRequest):
         db.commit()
 
         return {
-            "request_id": str(uuid4()),
+            "request_id": request_id,
             "route_key": route_key,
             "route_reason": route_reason,
+            "resolved_route_key": result["resolved_route_key"],
+            "fallback_used": result["fallback_used"],
+            "fallback_reason": result["fallback_reason"],
+            "attempted_routes": result["attempted_routes"],
+            "attempted_models": result["attempted_models"],
             "model_used": result["model_used"],
             "task_type": request.task_type,
             "priority": request.priority,
