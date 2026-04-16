@@ -214,7 +214,7 @@ export default function InferPage() {
                   </button>
 
                   <Link
-                    href="/"
+                    href="/dashboard"
                     className="rounded-2xl bg-slate-900 px-4 py-2 text-white hover:bg-slate-800"
                   >
                     View Dashboard
