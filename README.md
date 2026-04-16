@@ -1,10 +1,10 @@
 # RouteAlpha
 
-RouteAlpha is a full-stack AI inference routing platform that selects a model route based on request complexity, task type, and user priority. The project is designed to evolve into a startup-style AI systems platform focused on balancing cost, speed, and quality across model calls.
+RouteAlpha is a full-stack AI inference routing platform that selects a model route based on request complexity, task type, and user priority. The project now includes both a startup-style marketing site and a working operator product surface for testing, routing, and analytics.
 
 ## Overview
 
-Instead of sending every request to the same model, RouteAlpha routes prompts across different model paths such as `cheap`, `medium`, and `strong`. The current version includes a working backend API, PostgreSQL logging, analytics endpoints, a frontend dashboard, and a frontend inference page.
+Instead of sending every request to the same model, RouteAlpha routes prompts across different model paths such as `cheap`, `medium`, and `strong`. The current version includes a working backend API, PostgreSQL logging, analytics endpoints, a polished landing page, a dedicated dashboard, and a live inference playground.
 
 ## Current Features
 
@@ -17,10 +17,11 @@ Instead of sending every request to the same model, RouteAlpha routes prompts ac
 - cost estimation
 - PostgreSQL request logging
 - analytics summary and breakdown endpoints
-- frontend dashboard with charts and recent requests table
-- frontend inference page for prompt submission
-- shared navigation between dashboard and inference pages
-- recent requests filtering, search, and row limit controls
+- startup-style landing page with hero, platform sections, workflow, pricing, FAQ, and product CTAs
+- dedicated dashboard route with charts, insights, and recent requests table
+- inference playground for prompt submission and route inspection
+- shared responsive navigation across landing, dashboard, and inference pages
+- recent requests filtering, search, sorting, and row limit controls
 
 ## Tech Stack
 
@@ -37,13 +38,25 @@ Instead of sending every request to the same model, RouteAlpha routes prompts ac
 ## Current Status
 
 The project currently supports:
+- `/` startup landing page
+- `/dashboard` analytics and observability workspace
+- `/infer` live inference playground
 - `GET /health`
 - `POST /infer`
 - analytics endpoints for summaries and breakdowns
-- a dashboard page for analytics visualization
-- an inference page for manual prompt submission
+- a dedicated marketing front door connected to real app flows
 
 ## App Pages
+
+### Landing Page
+
+The landing page shows:
+- startup-style hero and product positioning
+- live analytics preview pulled from backend summary data when available
+- product/platform feature sections
+- workflow explanation for routing decisions
+- pricing-style packaging for the product surface
+- FAQ and final call-to-action sections
 
 ### Dashboard
 
@@ -66,11 +79,18 @@ The inference page allows users to:
 - submit an inference request
 - view route details, model used, token estimates, cost, latency, and response text
 
+## Project Notes
+
+- Progress and feature tracking live in `PROJECT_STATUS.md`
+- The homepage is now marketing-focused, while operator workflows live in `/dashboard` and `/infer`
+- The frontend is intentionally positioned to feel like a startup product rather than a raw internal tool
+
 ## Project Structure
 
 ```bash
 route-alpha/
 ├── README.md
+├── PROJECT_STATUS.md
 ├── backend/
 │   ├── README.md
 │   ├── app/

@@ -1,6 +1,6 @@
 # RouteAlpha Frontend
 
-The frontend is a Next.js dashboard and inference workspace for RouteAlpha.
+The frontend is a Next.js product site and app workspace for RouteAlpha.
 
 ## What It Includes
 
@@ -9,6 +9,8 @@ The frontend is a Next.js dashboard and inference workspace for RouteAlpha.
 - polished custom chart tooltips and dashboard insight cards
 - a recent requests table with loading states, empty states, filtering, searching, and sortable columns
 - an inference playground for running prompts against the backend and reviewing routing metadata
+- a startup-style landing page with product messaging and calls into the live app
+- shared responsive navigation between landing, dashboard, and inference flows
 
 ## Local Development
 
@@ -24,6 +26,14 @@ Open:
 http://localhost:3000
 ```
 
+Key routes:
+
+```text
+/            landing page
+/dashboard   analytics dashboard
+/infer       inference playground
+```
+
 ## Environment
 
 Create `frontend/.env.local` with:
@@ -34,16 +44,20 @@ NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
 
 ## Key Files
 
-- `app/page.tsx`: dashboard experience and analytics UI
+- `app/page.tsx`: landing page route entry
+- `app/dashboard/page.tsx`: dashboard route entry
 - `app/infer/page.tsx`: inference submission flow and response review
 - `app/layout.tsx`: app metadata and shared shell setup
 - `app/globals.css`: global visual styling and base theme
+- `components/LandingPage.tsx`: marketing homepage experience
+- `components/DashboardPage.tsx`: dashboard analytics experience
 - `components/Navbar.tsx`: shared top navigation
 
 ## Design Direction
 
 The current UI is intentionally built around:
 
+- a startup-facing front door connected to real product flows
 - bright, editorial-style surfaces instead of plain flat white panels
 - glassy layered cards with soft shadows and clearer spacing
 - high-signal empty/loading states for operational clarity
@@ -54,5 +68,5 @@ The current UI is intentionally built around:
 For a quick frontend lint check:
 
 ```bash
-npx eslint app/page.tsx app/infer/page.tsx components/Navbar.tsx
+npx eslint app/page.tsx app/dashboard/page.tsx app/infer/page.tsx components/Navbar.tsx
 ```
