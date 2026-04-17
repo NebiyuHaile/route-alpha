@@ -4,11 +4,12 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import inspect, text
 from uuid import uuid4
-from app.schemas import InferenceRequest
+from app.schemas import ContactRequestCreate, InferenceRequest
 from app.router import choose_model
 from app.llm_service import call_model
 from app.database import Base, engine, SessionLocal
-from app.models import InferenceLog
+from app.models import ContactRequest, InferenceLog
+from app.email_utils import send_contact_notification
 from app.analytics import (get_summary_stats, get_route_breakdown, get_model_breakdown, get_cost_breakdown, get_latency_breakdown, get_recent_requests)
 
 Base.metadata.create_all(bind=engine)
@@ -131,6 +132,42 @@ def infer(request: InferenceRequest):
             "latency_ms": result["latency_ms"],
         }
 
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
+@app.post("/contact")
+def create_contact_request(request: ContactRequestCreate):
+    db = SessionLocal()
+    try:
+        request_id = str(uuid4())
+
+        contact_request = ContactRequest(
+            request_id=request_id,
+            full_name=request.full_name.strip(),
+            email=request.email.lower().strip(),
+            company=request.company.strip() if request.company else None,
+            team_size=request.team_size.strip() if request.team_size else None,
+            use_case=request.use_case.strip(),
+            message=request.message.strip() if request.message else None,
+        )
+
+        db.add(contact_request)
+        db.commit()
+
+        email_sent, email_status = send_contact_notification(
+            request_id=request_id, request=request
+        )
+
+        return {
+            "request_id": request_id,
+            "message": "Contact request submitted successfully.",
+            "email_sent": email_sent,
+            "email_status": email_status,
+        }
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))

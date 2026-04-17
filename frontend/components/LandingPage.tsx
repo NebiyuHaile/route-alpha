@@ -64,8 +64,8 @@ const pricingPlans = [
     name: "Enterprise",
     price: "Custom",
     detail: "For higher-volume AI products with stricter quality and governance needs.",
-    cta: "Start platform tour",
-    href: "#faq",
+    cta: "Contact sales",
+    href: "/contact",
     points: ["Priority-based routing", "Observability workflows", "Policy customization"],
   },
 ];
@@ -179,10 +179,10 @@ export default function LandingPage() {
                     Try live inference
                   </Link>
                   <Link
-                    href="/dashboard"
+                    href="/contact"
                     className="inline-flex h-12 items-center justify-center rounded-full border border-slate-300 bg-white/85 px-6 text-sm font-semibold text-slate-900 shadow-sm backdrop-blur hover:-translate-y-0.5 hover:border-slate-400 hover:bg-white"
                   >
-                    Explore dashboard
+                    Book a demo
                   </Link>
                 </div>
                 <div className="mt-10 grid max-w-2xl grid-cols-1 gap-4 sm:grid-cols-3">
@@ -411,10 +411,10 @@ export default function LandingPage() {
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link
-                href="/dashboard"
+                href="/contact"
                 className="inline-flex h-12 items-center justify-center rounded-full bg-white px-6 text-sm font-semibold text-slate-950 hover:bg-slate-100"
               >
-                Open dashboard
+                Talk to us
               </Link>
               <Link
                 href="/infer"

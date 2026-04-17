@@ -11,6 +11,7 @@ This service powers RouteAlpha's inference routing and analytics API.
 - request cost estimation
 - PostgreSQL request logging
 - analytics queries for the dashboard
+- contact request capture and email notification
 
 ## Core Endpoints
 
@@ -62,6 +63,23 @@ Returns average latency grouped by model.
 
 Returns recent requests for the frontend dashboard table.
 
+### `POST /contact`
+
+Accepts:
+
+- `full_name`
+- `email`
+- `company`
+- `team_size`
+- `use_case`
+- `message`
+
+Flow:
+
+1. saves the contact request to PostgreSQL
+2. sends an email notification to `nebiyuhaile385@gmail.com`
+3. returns submission and email-delivery status
+
 ## File Map
 
 - `app/main.py`: FastAPI entry point and route definitions
@@ -96,4 +114,10 @@ http://127.0.0.1:8000/docs
 ```env
 OPENROUTER_API_KEY=your_openrouter_api_key_here
 DATABASE_URL=postgresql://postgres:your_password_here@localhost:5432/routealpha_db
+CONTACT_NOTIFICATION_EMAIL=nebiyuhaile385@gmail.com
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=your_gmail_address@gmail.com
+SMTP_PASSWORD=your_gmail_app_password_here
+SMTP_SENDER_EMAIL=your_gmail_address@gmail.com
 ```

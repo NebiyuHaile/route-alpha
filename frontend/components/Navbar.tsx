@@ -46,6 +46,9 @@ export default function Navbar() {
               <Link href="#faq" className="inline-flex h-10 items-center rounded-full px-4 text-sm font-medium text-slate-600 hover:bg-white hover:text-slate-900">
                 FAQ
               </Link>
+              <Link href="/contact" className="inline-flex h-10 items-center rounded-full px-4 text-sm font-medium text-slate-600 hover:bg-white hover:text-slate-900">
+                Contact
+              </Link>
             </div>
           ) : (
             <div className="flex flex-wrap items-center gap-2 rounded-full border border-slate-200/80 bg-slate-100/80 p-1">
@@ -58,15 +61,18 @@ export default function Navbar() {
               <Link href="/infer" className={linkClass("/infer")}>
                 Inference
               </Link>
+              <Link href="/contact" className={linkClass("/contact")}>
+                Contact
+              </Link>
             </div>
           )}
 
           <div className="flex items-center gap-2">
             <Link
-              href="/dashboard"
+              href="/contact"
               className="inline-flex h-10 items-center justify-center rounded-full border border-slate-300 bg-white px-4 text-sm font-medium text-slate-900 hover:border-slate-400 hover:bg-slate-50"
             >
-              Open app
+              Book demo
             </Link>
             <Link
               href="/infer"

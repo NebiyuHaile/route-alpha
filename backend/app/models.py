@@ -23,3 +23,16 @@ class InferenceLog(Base):
     latency_ms = Column(Float, nullable=False)
     response = Column(Text, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+
+
+class ContactRequest(Base):
+    __tablename__ = "contact_requests"
+
+    request_id = Column(String, primary_key=True, index=True)
+    full_name = Column(String, nullable=False)
+    email = Column(String, nullable=False, index=True)
+    company = Column(String, nullable=True)
+    team_size = Column(String, nullable=True)
+    use_case = Column(String, nullable=False)
+    message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
