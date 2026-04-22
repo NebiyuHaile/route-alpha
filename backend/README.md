@@ -12,6 +12,7 @@ This service powers RouteAlpha's inference routing and analytics API.
 - PostgreSQL request logging
 - analytics queries for the dashboard
 - contact request capture and email notification
+- account registration, login, and token-based auth
 
 ## Core Endpoints
 
@@ -80,6 +81,18 @@ Flow:
 2. sends an email notification to `nebiyuhaile385@gmail.com`
 3. returns submission and email-delivery status
 
+### `POST /auth/register`
+
+Creates a user account and returns a bearer token plus user details.
+
+### `POST /auth/login`
+
+Signs a user in and returns a bearer token plus user details.
+
+### `GET /auth/me`
+
+Returns the currently authenticated user.
+
 ## File Map
 
 - `app/main.py`: FastAPI entry point and route definitions
@@ -120,4 +133,6 @@ SMTP_PORT=587
 SMTP_USERNAME=your_gmail_address@gmail.com
 SMTP_PASSWORD=your_gmail_app_password_here
 SMTP_SENDER_EMAIL=your_gmail_address@gmail.com
+AUTH_SECRET_KEY=replace_with_a_long_random_secret
+AUTH_TOKEN_EXPIRE_HOURS=24
 ```

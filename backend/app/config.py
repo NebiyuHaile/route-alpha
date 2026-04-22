@@ -14,6 +14,8 @@ SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USERNAME = os.getenv("SMTP_USERNAME")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 SMTP_SENDER_EMAIL = os.getenv("SMTP_SENDER_EMAIL", SMTP_USERNAME or "")
+AUTH_SECRET_KEY = os.getenv("AUTH_SECRET_KEY", "routealpha-dev-secret-change-me")
+AUTH_TOKEN_EXPIRE_HOURS = int(os.getenv("AUTH_TOKEN_EXPIRE_HOURS", "24"))
 
 MODEL_CATALOG = {
     "cheap": "openrouter/google/gemini-2.0-flash-lite-001",

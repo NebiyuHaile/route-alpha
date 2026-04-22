@@ -21,6 +21,8 @@ Instead of sending every request to the same model, RouteAlpha routes prompts ac
 - dedicated dashboard route with charts, insights, and recent requests table
 - inference playground for prompt submission and route inspection
 - backend-connected contact and demo request flow
+- account registration and login
+- protected dashboard and inference APIs via bearer auth
 - shared responsive navigation across landing, dashboard, and inference pages
 - recent requests filtering, search, sorting, and row limit controls
 
@@ -40,6 +42,7 @@ Instead of sending every request to the same model, RouteAlpha routes prompts ac
 
 The project currently supports:
 - `/` startup landing page
+- `/auth` sign-in and registration
 - `/dashboard` analytics and observability workspace
 - `/infer` live inference playground
 - `/contact` contact and demo request page
@@ -60,6 +63,14 @@ The landing page shows:
 - workflow explanation for routing decisions
 - pricing-style packaging for the product surface
 - FAQ and final call-to-action sections
+
+### Auth
+
+The auth page allows users to:
+- create an account
+- sign in with email and password
+- restore a saved session on refresh
+- access protected dashboard and inference workflows
 
 ### Dashboard
 
@@ -95,6 +106,7 @@ The contact page allows teams to:
 - Progress and feature tracking live in `PROJECT_STATUS.md`
 - The homepage is now marketing-focused, while operator workflows live in `/dashboard` and `/infer`
 - Conversion and demo intake now live at `/contact`
+- Authentication now protects the main product workflows
 - The frontend is intentionally positioned to feel like a startup product rather than a raw internal tool
 
 ## Project Structure

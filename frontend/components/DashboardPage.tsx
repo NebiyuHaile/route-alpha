@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useAuth } from "./AuthProvider";
 import Navbar from "./Navbar";
+import RequireAuth from "./RequireAuth";
 import {
   BarChart,
   Bar,
@@ -193,6 +195,7 @@ function compareRecentRequests(
 
 
 export default function Home() {
+  const { authFetch, isAuthenticated, isReady } = useAuth();
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [routes, setRoutes] = useState<RouteData[]>([]);
   const [selectedRoute, setSelectedRoute] = useState("all");
@@ -232,12 +235,12 @@ export default function Home() {
         latencyRes,
         recentRes,
       ] = await Promise.all([
-        fetch(`${API_BASE_URL}/analytics/summary`, { cache: "no-store" }),
-        fetch(`${API_BASE_URL}/analytics/routes`, { cache: "no-store" }),
-        fetch(`${API_BASE_URL}/analytics/models`, { cache: "no-store" }),
-        fetch(`${API_BASE_URL}/analytics/costs`, { cache: "no-store" }),
-        fetch(`${API_BASE_URL}/analytics/latency`, { cache: "no-store" }),
-        fetch(`${API_BASE_URL}/analytics/recent?limit=${recentLimit}`, {
+        authFetch(`${API_BASE_URL}/analytics/summary`, { cache: "no-store" }),
+        authFetch(`${API_BASE_URL}/analytics/routes`, { cache: "no-store" }),
+        authFetch(`${API_BASE_URL}/analytics/models`, { cache: "no-store" }),
+        authFetch(`${API_BASE_URL}/analytics/costs`, { cache: "no-store" }),
+        authFetch(`${API_BASE_URL}/analytics/latency`, { cache: "no-store" }),
+        authFetch(`${API_BASE_URL}/analytics/recent?limit=${recentLimit}`, {
           cache: "no-store",
         }),
       ]);
@@ -274,11 +277,13 @@ export default function Home() {
       setRecentLoading(false);
       setRefreshing(false);
     }
-  }, [hasLoadedOnce, recentLimit]);
+  }, [authFetch, hasLoadedOnce, recentLimit]);
 
   useEffect(() => {
-    loadDashboard();
-  }, [loadDashboard]);
+    if (isReady && isAuthenticated) {
+      loadDashboard();
+    }
+  }, [isAuthenticated, isReady, loadDashboard]);
 
   const formattedModels = models.map((item) => ({
     ...item,
@@ -396,8 +401,9 @@ export default function Home() {
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-slate-50 p-8 text-slate-900">
-        <div className="mx-auto max-w-7xl space-y-8">
+      <RequireAuth>
+        <main className="min-h-screen bg-slate-50 p-8 text-slate-900">
+          <div className="mx-auto max-w-7xl space-y-8">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <h1 className="text-4xl font-bold">RouteAlpha Dashboard</h1>
@@ -717,8 +723,9 @@ export default function Home() {
               </table>
             </div>
           </section>
-        </div>
-      </main>
+          </div>
+        </main>
+      </RequireAuth>
     </>
   );
 }

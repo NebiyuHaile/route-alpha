@@ -1,14 +1,23 @@
 import json
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import inspect, text
 from uuid import uuid4
-from app.schemas import ContactRequestCreate, InferenceRequest
+from app.auth_utils import create_access_token, decode_access_token, hash_password, verify_password
+from app.schemas import (
+    AuthResponse,
+    ContactRequestCreate,
+    InferenceRequest,
+    UserLoginRequest,
+    UserRegisterRequest,
+    UserResponse,
+)
 from app.router import choose_model
 from app.llm_service import call_model
 from app.database import Base, engine, SessionLocal
-from app.models import ContactRequest, InferenceLog
+from app.models import ContactRequest, InferenceLog, User
 from app.email_utils import send_contact_notification
 from app.analytics import (get_summary_stats, get_route_breakdown, get_model_breakdown, get_cost_breakdown, get_latency_breakdown, get_recent_requests)
 
@@ -36,6 +45,7 @@ def ensure_inference_log_columns() -> None:
 ensure_inference_log_columns()
 
 app = FastAPI(title="RouteAlpha API")
+auth_scheme = HTTPBearer(auto_error=False)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],
@@ -45,39 +55,144 @@ app.add_middleware(
 )
 
 
+def serialize_user(user: User) -> UserResponse:
+    return UserResponse(
+        user_id=user.user_id,
+        full_name=user.full_name,
+        email=user.email,
+        company=user.company,
+    )
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(auth_scheme),
+):
+    if not credentials or credentials.scheme.lower() != "bearer":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required.",
+        )
+
+    try:
+        payload = decode_access_token(credentials.credentials)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(exc),
+        ) from exc
+
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.user_id == payload["sub"]).first()
+        if not user or not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found or inactive.",
+            )
+        return user
+    finally:
+        db.close()
+
+
 @app.get("/health")
 def health_check():
     return {"status": "ok", "service": "RouteAlpha backend"}
 
+
+@app.post("/auth/register", response_model=AuthResponse)
+def register(request: UserRegisterRequest):
+    db = SessionLocal()
+    try:
+        existing_user = db.query(User).filter(User.email == request.email.lower()).first()
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="An account with that email already exists.",
+            )
+
+        user = User(
+            user_id=str(uuid4()),
+            full_name=request.full_name.strip(),
+            email=request.email.lower().strip(),
+            company=request.company.strip() if request.company else None,
+            password_hash=hash_password(request.password),
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+        return AuthResponse(
+            access_token=create_access_token(user.user_id, user.email),
+            user=serialize_user(user),
+        )
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
+@app.post("/auth/login", response_model=AuthResponse)
+def login(request: UserLoginRequest):
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.email == request.email.lower()).first()
+        if not user or not verify_password(request.password, user.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password.",
+            )
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="This account is inactive.",
+            )
+
+        return AuthResponse(
+            access_token=create_access_token(user.user_id, user.email),
+            user=serialize_user(user),
+        )
+    finally:
+        db.close()
+
+
+@app.get("/auth/me", response_model=UserResponse)
+def auth_me(current_user: User = Depends(get_current_user)):
+    return serialize_user(current_user)
+
+
 @app.get("/analytics/summary")
-def analytics_summary():
+def analytics_summary(current_user: User = Depends(get_current_user)):
     return get_summary_stats()
 
 
 @app.get("/analytics/routes")
-def analytics_routes():
+def analytics_routes(current_user: User = Depends(get_current_user)):
     return get_route_breakdown()
 
 
 @app.get("/analytics/models")
-def analytics_models():
+def analytics_models(current_user: User = Depends(get_current_user)):
     return get_model_breakdown()
 
 @app.get("/analytics/costs")
-def analytics_costs():
+def analytics_costs(current_user: User = Depends(get_current_user)):
     return get_cost_breakdown()
 
 @app.get("/analytics/latency")
-def analytics_latency():
+def analytics_latency(current_user: User = Depends(get_current_user)):
     return get_latency_breakdown()
 
 @app.get("/analytics/recent")
-def analytics_recent(limit: int = 10):
+def analytics_recent(limit: int = 10, current_user: User = Depends(get_current_user)):
     return get_recent_requests(limit=limit)
 
 
 @app.post("/infer")
-def infer(request: InferenceRequest):
+def infer(request: InferenceRequest, current_user: User = Depends(get_current_user)):
     db = SessionLocal()
     try:
         route_key, route_reason = choose_model(

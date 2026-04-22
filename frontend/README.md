@@ -12,6 +12,7 @@ The frontend is a Next.js product site and app workspace for RouteAlpha.
 - a startup-style landing page with product messaging and calls into the live app
 - shared responsive navigation between landing, dashboard, and inference flows
 - a backend-connected contact and demo request page
+- sign-in and registration flow with local session persistence
 
 ## Local Development
 
@@ -31,6 +32,7 @@ Key routes:
 
 ```text
 /            landing page
+/auth        sign-in and registration
 /dashboard   analytics dashboard
 /infer       inference playground
 /contact     contact and demo request page
@@ -48,6 +50,7 @@ NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
 
 - `app/page.tsx`: landing page route entry
 - `app/dashboard/page.tsx`: dashboard route entry
+- `app/auth/page.tsx`: sign-in and registration
 - `app/infer/page.tsx`: inference submission flow and response review
 - `app/contact/page.tsx`: contact and demo request flow
 - `app/layout.tsx`: app metadata and shared shell setup
@@ -55,6 +58,8 @@ NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
 - `components/LandingPage.tsx`: marketing homepage experience
 - `components/DashboardPage.tsx`: dashboard analytics experience
 - `components/Navbar.tsx`: shared top navigation
+- `components/AuthProvider.tsx`: session storage and auth API integration
+- `components/RequireAuth.tsx`: protected route wrapper for app surfaces
 
 ## Design Direction
 

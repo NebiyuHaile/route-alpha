@@ -2,7 +2,9 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
+import { useAuth } from "../../components/AuthProvider";
 import Navbar from "../../components/Navbar";
+import RequireAuth from "../../components/RequireAuth";
 
 type InferenceResult = {
   request_id: string;
@@ -28,6 +30,7 @@ const PROMPT_PRESETS = [
 ];
 
 export default function InferPage() {
+  const { authFetch } = useAuth();
   const [prompt, setPrompt] = useState("");
   const [taskType, setTaskType] = useState("general");
   const [priority, setPriority] = useState("balanced");
@@ -43,7 +46,7 @@ export default function InferPage() {
     setResult(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/infer`, {
+      const response = await authFetch(`${API_BASE_URL}/infer`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -80,7 +83,8 @@ export default function InferPage() {
   return (
     <>
       <Navbar />
-      <main className="min-h-screen p-8 text-slate-900">
+      <RequireAuth>
+        <main className="min-h-screen p-8 text-slate-900">
         <div className="mx-auto max-w-5xl space-y-8">
           <section className="rounded-[2rem] border border-white/70 bg-white/85 p-8 shadow-[0_20px_60px_-30px_rgba(15,23,42,0.28)] backdrop-blur-sm">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
@@ -256,7 +260,8 @@ export default function InferPage() {
             </section>
           )}
         </div>
-      </main>
+        </main>
+      </RequireAuth>
     </>
   );
 }

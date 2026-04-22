@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "./AuthProvider";
 
 export default function Navbar() {
   const pathname = usePathname();
   const isHome = pathname === "/";
+  const { isAuthenticated, isReady, logout, user } = useAuth();
 
   const linkClass = (href: string) =>
     `inline-flex h-10 items-center rounded-full px-4 text-sm font-medium transition ${
@@ -49,6 +51,9 @@ export default function Navbar() {
               <Link href="/contact" className="inline-flex h-10 items-center rounded-full px-4 text-sm font-medium text-slate-600 hover:bg-white hover:text-slate-900">
                 Contact
               </Link>
+              <Link href="/auth" className="inline-flex h-10 items-center rounded-full px-4 text-sm font-medium text-slate-600 hover:bg-white hover:text-slate-900">
+                Auth
+              </Link>
             </div>
           ) : (
             <div className="flex flex-wrap items-center gap-2 rounded-full border border-slate-200/80 bg-slate-100/80 p-1">
@@ -64,23 +69,47 @@ export default function Navbar() {
               <Link href="/contact" className={linkClass("/contact")}>
                 Contact
               </Link>
+              <Link href="/auth" className={linkClass("/auth")}>
+                Auth
+              </Link>
             </div>
           )}
 
-          <div className="flex items-center gap-2">
-            <Link
-              href="/contact"
-              className="inline-flex h-10 items-center justify-center rounded-full border border-slate-300 bg-white px-4 text-sm font-medium text-slate-900 hover:border-slate-400 hover:bg-slate-50"
-            >
-              Book demo
-            </Link>
-            <Link
-              href="/infer"
-              className="inline-flex h-10 items-center justify-center rounded-full bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800"
-            >
-              Run prompt
-            </Link>
-          </div>
+          {isReady && isAuthenticated ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex h-10 items-center rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700">
+                {user?.full_name || user?.email}
+              </div>
+              <Link
+                href="/dashboard"
+                className="inline-flex h-10 items-center justify-center rounded-full border border-slate-300 bg-white px-4 text-sm font-medium text-slate-900 hover:border-slate-400 hover:bg-slate-50"
+              >
+                Open app
+              </Link>
+              <button
+                type="button"
+                onClick={logout}
+                className="inline-flex h-10 items-center justify-center rounded-full bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800"
+              >
+                Sign out
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Link
+                href="/contact"
+                className="inline-flex h-10 items-center justify-center rounded-full border border-slate-300 bg-white px-4 text-sm font-medium text-slate-900 hover:border-slate-400 hover:bg-slate-50"
+              >
+                Book demo
+              </Link>
+              <Link
+                href="/auth"
+                className="inline-flex h-10 items-center justify-center rounded-full bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800"
+              >
+                Sign in
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </nav>

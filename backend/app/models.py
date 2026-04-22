@@ -36,3 +36,15 @@ class ContactRequest(Base):
     use_case = Column(String, nullable=False)
     message = Column(Text, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    user_id = Column(String, primary_key=True, index=True)
+    full_name = Column(String, nullable=False)
+    email = Column(String, nullable=False, unique=True, index=True)
+    company = Column(String, nullable=True)
+    password_hash = Column(String, nullable=False)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))

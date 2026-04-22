@@ -2,9 +2,10 @@
 
 ## Current Build
 
-RouteAlpha currently has four user-facing product surfaces:
+RouteAlpha currently has five user-facing product surfaces:
 
 - `/` marketing and startup-style landing page
+- `/auth` sign-in and account creation flow
 - `/dashboard` analytics dashboard for routing observability
 - `/infer` live inference playground for testing prompts and route decisions
 - `/contact` backend-connected contact and demo request page
@@ -22,11 +23,14 @@ RouteAlpha currently has four user-facing product surfaces:
 - PostgreSQL-backed inference logging
 - backend-backed contact request capture
 - email notification delivery for contact requests
+- user account registration and login
+- bearer token authentication for protected API routes
 - analytics queries for summary, route, model, cost, latency, and recent request views
 
 ### Frontend
 
 - responsive shared navigation across product pages
+- auth session provider with local session persistence
 - startup-style landing page with:
   - hero section
   - live metrics preview
@@ -51,6 +55,11 @@ RouteAlpha currently has four user-facing product surfaces:
   - request submission states
   - result metadata display
   - response display
+- auth flow with:
+  - account creation
+  - sign-in
+  - session restore on refresh
+  - protected dashboard and inference access
 - contact flow with:
   - demo request form
   - team and use case capture
@@ -62,6 +71,7 @@ RouteAlpha currently has four user-facing product surfaces:
 
 - `frontend/app/page.tsx` is now the landing-page entrypoint
 - `frontend/app/dashboard/page.tsx` serves the analytics product surface
+- `frontend/app/auth/page.tsx` serves sign-in and registration
 - `frontend/components/LandingPage.tsx` contains the main marketing experience
 - `frontend/components/DashboardPage.tsx` contains the dashboard experience extracted from the previous homepage
 - `frontend/components/Navbar.tsx` is the shared nav across all app surfaces
@@ -73,6 +83,7 @@ RouteAlpha currently has four user-facing product surfaces:
 - preserved the original analytics UI by moving it to a dedicated `/dashboard` route
 - tightened the navigation to support both marketing exploration and direct app usage
 - added a real conversion path with a backend-connected contact page
+- added the first real auth layer so product workflows can be gated behind accounts
 - kept the design language polished and product-oriented instead of purely internal-tool styling
 
 ## Verified Working State
@@ -80,13 +91,13 @@ RouteAlpha currently has four user-facing product surfaces:
 - frontend lint passes with `npm run lint`
 - app routes are organized for:
   - landing page
+  - auth page
   - dashboard
   - inference playground
   - contact page
 
 ## Next Likely Steps
 
-- add auth and user accounts
 - add a docs or product-tour page
 - add screenshots or richer real data previews to the landing page
 - expand routing logic beyond current rule-based heuristics
