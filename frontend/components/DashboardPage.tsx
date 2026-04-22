@@ -18,6 +18,8 @@ type SummaryData = {
   total_requests: number;
   average_latency_ms: number;
   total_estimated_cost_usd: number;
+  fallback_requests?: number;
+  fallback_rate_pct?: number;
 };
 
 type RouteData = {
@@ -45,6 +47,8 @@ type RecentRequest = {
   task_type: string | null;
   priority: string | null;
   route_key: string;
+  resolved_route_key?: string | null;
+  fallback_used?: boolean;
   model_used: string;
   estimated_cost_usd: number;
   latency_ms: number;
@@ -123,6 +127,17 @@ function getMetricLabel(metric: string) {
 function formatChartInsightLabel(label: string) {
   return label.replace(/-/g, " ");
 }
+
+function getResolvedRouteLabel(row: RecentRequest) {
+  return row.resolved_route_key || row.route_key;
+}
+
+function getFallbackBadgeClass(fallbackUsed: boolean) {
+  return fallbackUsed
+    ? "border border-amber-200 bg-amber-50 text-amber-700"
+    : "border border-emerald-200 bg-emerald-50 text-emerald-700";
+}
+
 function getRouteBadgeClass(route: string) {
   switch (route) {
     case "cheap":
@@ -308,6 +323,8 @@ export default function Home() {
   const fastestModel = [...latency].sort(
     (left, right) => left.average_latency_ms - right.average_latency_ms
   )[0];
+  const fallbackRequests = summary?.fallback_requests ?? 0;
+  const fallbackRate = summary?.fallback_rate_pct ?? 0;
 
   const filteredRecentRequests = recentRequests
     .filter((row) =>
@@ -325,6 +342,8 @@ export default function Home() {
         (row.task_type || "").toLowerCase().includes(searchValue) ||
         (row.priority || "").toLowerCase().includes(searchValue) ||
         row.route_key.toLowerCase().includes(searchValue) ||
+        getResolvedRouteLabel(row).toLowerCase().includes(searchValue) ||
+        (row.fallback_used ? "fallback" : "primary").includes(searchValue) ||
         row.model_used.toLowerCase().includes(searchValue)
       );
     })
@@ -436,7 +455,7 @@ export default function Home() {
             />
           </section>
 
-          <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <section className="grid grid-cols-1 gap-4 lg:grid-cols-4">
             <InsightCard
               eyebrow="Most Active Route"
               title={topRoute ? formatChartInsightLabel(topRoute.route_key) : "No data yet"}
@@ -470,6 +489,15 @@ export default function Home() {
                 fastestModel
                   ? `${formatLatency(fastestModel.average_latency_ms)} average response time`
                   : "Latency rankings appear once recent inference data is available."
+              }
+            />
+            <InsightCard
+              eyebrow="Fallback Activity"
+              title={fallbackRequests ? `${fallbackRequests.toLocaleString()} reroutes` : "No reroutes yet"}
+              detail={
+                fallbackRequests
+                  ? `${fallbackRate.toFixed(2)}% of requests resolved on a fallback route instead of the primary pick.`
+                  : "Requests are currently resolving on their primary route without needing a backup path."
               }
             />
           </section>
@@ -690,13 +718,32 @@ export default function Home() {
                         </td>
 
                         <td className="border border-l-0 border-r-0 border-slate-200 bg-white px-4 py-4 align-middle">
-                          <span
-                            className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${getRouteBadgeClass(
-                              row.route_key
-                            )}`}
-                          >
-                            {row.route_key}
-                          </span>
+                          <div className="flex flex-col gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span
+                                className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${getRouteBadgeClass(
+                                  row.route_key
+                                )}`}
+                              >
+                                {row.route_key}
+                              </span>
+                              <span
+                                className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${getFallbackBadgeClass(
+                                  Boolean(row.fallback_used)
+                                )}`}
+                              >
+                                {row.fallback_used ? "Fallback" : "Primary"}
+                              </span>
+                            </div>
+                            {row.fallback_used && row.resolved_route_key ? (
+                              <p className="text-xs text-slate-500">
+                                Resolved on{" "}
+                                <span className="font-medium text-slate-700">
+                                  {row.resolved_route_key}
+                                </span>
+                              </p>
+                            ) : null}
+                          </div>
                         </td>
 
                         <td className="border border-l-0 border-r-0 border-slate-200 bg-white px-4 py-4 align-middle text-slate-700">
