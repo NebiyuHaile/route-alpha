@@ -7,6 +7,7 @@ This service powers RouteAlpha's inference routing and analytics API.
 - health checking
 - inference routing
 - live model calls through LiteLLM and OpenRouter
+- fallback routing across route tiers when primary model calls fail
 - token estimation
 - request cost estimation
 - PostgreSQL request logging
@@ -31,10 +32,19 @@ Accepts:
 Flow:
 
 1. chooses a route using rule-based routing
-2. calls a model through LiteLLM and OpenRouter
-3. estimates token usage and cost
-4. saves the request to PostgreSQL
-5. returns the response plus metadata
+2. attempts the primary route model
+3. falls back through configured route order when needed
+4. estimates token usage and cost for the successful attempt
+5. saves the request plus fallback metadata to PostgreSQL
+6. returns the response plus metadata
+
+Response metadata includes:
+
+- `resolved_route_key`
+- `fallback_used`
+- `fallback_reason`
+- `attempted_routes`
+- `attempted_models`
 
 ### `GET /analytics/summary`
 
@@ -43,6 +53,8 @@ Returns:
 - total requests
 - average latency
 - total estimated cost
+- fallback request count
+- fallback rate percentage
 
 ### `GET /analytics/routes`
 
@@ -62,7 +74,7 @@ Returns average latency grouped by model.
 
 ### `GET /analytics/recent`
 
-Returns recent requests for the frontend dashboard table.
+Returns recent requests for the frontend dashboard table, including fallback status and resolved route details.
 
 ### `POST /contact`
 
@@ -99,7 +111,7 @@ Returns the currently authenticated user.
 - `app/schemas.py`: request and response schemas
 - `app/config.py`: environment loading and model configuration
 - `app/router.py`: route selection logic
-- `app/llm_service.py`: model call orchestration and metadata capture
+- `app/llm_service.py`: model call orchestration, fallback execution, and metadata capture
 - `app/token_utils.py`: token estimation helpers
 - `app/pricing.py`: pricing constants for cost estimation
 - `app/database.py`: SQLAlchemy engine, session, and base setup
@@ -136,3 +148,16 @@ SMTP_SENDER_EMAIL=your_gmail_address@gmail.com
 AUTH_SECRET_KEY=replace_with_a_long_random_secret
 AUTH_TOKEN_EXPIRE_HOURS=24
 ```
+
+## Fallback Configuration
+
+`app/config.py` defines `FALLBACK_ROUTE_ORDER`, which controls fallback sequencing by route key:
+
+- `cheap -> medium -> strong`
+- `medium -> strong -> cheap`
+- `strong -> medium -> cheap`
+
+Notes:
+
+- the fallback executor deduplicates identical model names to avoid retrying the same model under multiple route aliases
+- schema upgrade logic in `app/main.py` adds fallback-related columns on startup if they do not already exist

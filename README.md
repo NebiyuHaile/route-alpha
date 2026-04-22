@@ -11,6 +11,7 @@ Instead of sending every request to the same model, RouteAlpha routes prompts ac
 - FastAPI backend
 - real model inference through LiteLLM and OpenRouter
 - rule-based routing by task type, prompt length, and priority
+- fallback routing with ordered route failover and attempted-route tracking
 - route reasoning returned in API responses
 - latency measurement
 - token estimation
@@ -25,6 +26,7 @@ Instead of sending every request to the same model, RouteAlpha routes prompts ac
 - protected dashboard and inference APIs via bearer auth
 - shared responsive navigation across landing, dashboard, and inference pages
 - recent requests filtering, search, sorting, and row limit controls
+- fallback observability in the dashboard (summary fallback activity + row-level fallback state)
 
 ## Tech Stack
 
@@ -49,6 +51,9 @@ The project currently supports:
 - `GET /health`
 - `POST /infer`
 - `POST /contact`
+- `POST /auth/register`
+- `POST /auth/login`
+- `GET /auth/me`
 - analytics endpoints for summaries and breakdowns
 - a dedicated marketing front door connected to real app flows
 
@@ -78,11 +83,12 @@ The dashboard shows:
 - total requests
 - average latency
 - total estimated cost
+- fallback request count and fallback rate
 - route breakdown
 - model breakdown
 - cost by model
 - latency by model
-- recent requests table
+- recent requests table with fallback badges and resolved-route visibility
 
 ### Inference
 
@@ -107,6 +113,7 @@ The contact page allows teams to:
 - The homepage is now marketing-focused, while operator workflows live in `/dashboard` and `/infer`
 - Conversion and demo intake now live at `/contact`
 - Authentication now protects the main product workflows
+- Landing-page live preview gracefully falls back to an offline/demo state when protected analytics APIs are unavailable
 - The frontend is intentionally positioned to feel like a startup product rather than a raw internal tool
 
 ## Project Structure

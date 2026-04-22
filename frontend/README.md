@@ -5,9 +5,10 @@ The frontend is a Next.js product site and app workspace for RouteAlpha.
 ## What It Includes
 
 - analytics summary cards for request volume, latency, and estimated cost
+- fallback observability cards for reroute volume and rate
 - chart views for route distribution, model usage, cost by model, and latency by model
 - polished custom chart tooltips and dashboard insight cards
-- a recent requests table with loading states, empty states, filtering, searching, and sortable columns
+- a recent requests table with loading states, empty states, filtering, searching, sorting, and fallback badges
 - an inference playground for running prompts against the backend and reviewing routing metadata
 - a startup-style landing page with product messaging and calls into the live app
 - shared responsive navigation between landing, dashboard, and inference flows
@@ -60,6 +61,12 @@ NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
 - `components/Navbar.tsx`: shared top navigation
 - `components/AuthProvider.tsx`: session storage and auth API integration
 - `components/RequireAuth.tsx`: protected route wrapper for app surfaces
+
+## Auth Behavior
+
+- `/dashboard` and `/infer` use authenticated API requests through `AuthProvider`
+- analytics and inference backend routes require a bearer token
+- the landing page attempts a live analytics preview and falls back to an offline/demo state if protected data cannot be loaded
 
 ## Design Direction
 

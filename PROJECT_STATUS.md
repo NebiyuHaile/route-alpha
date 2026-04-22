@@ -16,16 +16,19 @@ RouteAlpha currently has five user-facing product surfaces:
 
 - FastAPI API with health and inference endpoints
 - rule-based routing across `cheap`, `medium`, and `strong`
+- fallback routing across ordered route tiers when primary calls fail
 - task type and priority-aware route selection
 - route reasoning returned with each inference response
 - LiteLLM and OpenRouter integration for real model calls
 - latency, token, and estimated cost tracking
 - PostgreSQL-backed inference logging
+- fallback metadata logging (`resolved_route_key`, `fallback_used`, attempted routes/models)
 - backend-backed contact request capture
 - email notification delivery for contact requests
 - user account registration and login
 - bearer token authentication for protected API routes
 - analytics queries for summary, route, model, cost, latency, and recent request views
+- summary analytics include fallback count and fallback rate percentage
 
 ### Frontend
 
@@ -42,12 +45,14 @@ RouteAlpha currently has five user-facing product surfaces:
 - dashboard experience with:
   - summary cards
   - insight cards
+  - fallback activity insight card
   - route breakdown chart
   - model breakdown chart
   - cost by model chart
   - latency by model chart
   - recent requests table
   - search, filters, sorting, and row limits
+  - row-level fallback badges and resolved-route visibility
 - inference playground with:
   - preset prompts
   - task type selection
@@ -84,6 +89,8 @@ RouteAlpha currently has five user-facing product surfaces:
 - tightened the navigation to support both marketing exploration and direct app usage
 - added a real conversion path with a backend-connected contact page
 - added the first real auth layer so product workflows can be gated behind accounts
+- added fallback routing so failed primary model attempts can resolve via backup routes
+- surfaced fallback observability in dashboard insights and recent-request rows
 - kept the design language polished and product-oriented instead of purely internal-tool styling
 
 ## Verified Working State
