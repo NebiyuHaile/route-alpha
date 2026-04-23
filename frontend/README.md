@@ -6,6 +6,7 @@ The frontend is a Next.js product site and app workspace for RouteAlpha.
 
 - analytics summary cards for request volume, latency, and estimated cost
 - fallback observability cards for reroute volume and rate
+- fallback breakdown analytics for primary route, resolved model, and trend
 - chart views for route distribution, model usage, cost by model, and latency by model
 - polished custom chart tooltips and dashboard insight cards
 - a recent requests table with loading states, empty states, filtering, searching, sorting, and fallback badges

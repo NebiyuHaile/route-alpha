@@ -76,6 +76,14 @@ Returns average latency grouped by model.
 
 Returns recent requests for the frontend dashboard table, including fallback status and resolved route details.
 
+### `GET /analytics/fallbacks`
+
+Returns fallback analytics breakdowns for dashboard observability:
+
+- fallback count by primary route
+- fallback count by resolved model
+- fallback count trend by date
+
 ### `POST /contact`
 
 Accepts:

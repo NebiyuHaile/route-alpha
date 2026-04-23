@@ -142,3 +142,57 @@ def get_recent_requests(limit: int = 10):
         ]
     finally:
         db.close()
+
+
+def get_fallback_breakdowns():
+    db = SessionLocal()
+    try:
+        fallback_route_rows = (
+            db.query(
+                InferenceLog.route_key,
+                func.count(InferenceLog.request_id).label("count")
+            )
+            .filter(InferenceLog.fallback_used.is_(True))
+            .group_by(InferenceLog.route_key)
+            .order_by(func.count(InferenceLog.request_id).desc())
+            .all()
+        )
+
+        fallback_model_rows = (
+            db.query(
+                InferenceLog.model_used,
+                func.count(InferenceLog.request_id).label("count")
+            )
+            .filter(InferenceLog.fallback_used.is_(True))
+            .group_by(InferenceLog.model_used)
+            .order_by(func.count(InferenceLog.request_id).desc())
+            .all()
+        )
+
+        fallback_trend_rows = (
+            db.query(
+                func.date(InferenceLog.created_at).label("date"),
+                func.count(InferenceLog.request_id).label("count")
+            )
+            .filter(InferenceLog.fallback_used.is_(True))
+            .group_by(func.date(InferenceLog.created_at))
+            .order_by(func.date(InferenceLog.created_at))
+            .all()
+        )
+
+        return {
+            "by_route": [
+                {"route_key": row.route_key, "count": row.count}
+                for row in fallback_route_rows
+            ],
+            "by_model": [
+                {"model_used": row.model_used, "count": row.count}
+                for row in fallback_model_rows
+            ],
+            "trend": [
+                {"date": str(row.date), "count": row.count}
+                for row in fallback_trend_rows
+            ],
+        }
+    finally:
+        db.close()

@@ -55,6 +55,27 @@ type RecentRequest = {
   created_at: string | null;
 };
 
+type FallbackRouteData = {
+  route_key: string;
+  count: number;
+};
+
+type FallbackModelData = {
+  model_used: string;
+  count: number;
+};
+
+type FallbackTrendData = {
+  date: string;
+  count: number;
+};
+
+type FallbackBreakdowns = {
+  by_route: FallbackRouteData[];
+  by_model: FallbackModelData[];
+  trend: FallbackTrendData[];
+};
+
 type ChartRow = Record<string, string | number>;
 
 type SortColumn =
@@ -126,6 +147,14 @@ function getMetricLabel(metric: string) {
 
 function formatChartInsightLabel(label: string) {
   return label.replace(/-/g, " ");
+}
+
+function formatDateLabel(dateValue: string) {
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) {
+    return dateValue;
+  }
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
 function getResolvedRouteLabel(row: RecentRequest) {
@@ -219,6 +248,9 @@ export default function Home() {
   const [costs, setCosts] = useState<CostData[]>([]);
   const [latency, setLatency] = useState<LatencyData[]>([]);
   const [recentRequests, setRecentRequests] = useState<RecentRequest[]>([]);
+  const [fallbackByRoute, setFallbackByRoute] = useState<FallbackRouteData[]>([]);
+  const [fallbackByModel, setFallbackByModel] = useState<FallbackModelData[]>([]);
+  const [fallbackTrend, setFallbackTrend] = useState<FallbackTrendData[]>([]);
   const [recentLimit, setRecentLimit] = useState(10);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortColumn, setSortColumn] = useState<SortColumn>(DEFAULT_SORT.column);
@@ -249,6 +281,7 @@ export default function Home() {
         costsRes,
         latencyRes,
         recentRes,
+        fallbackRes,
       ] = await Promise.all([
         authFetch(`${API_BASE_URL}/analytics/summary`, { cache: "no-store" }),
         authFetch(`${API_BASE_URL}/analytics/routes`, { cache: "no-store" }),
@@ -258,6 +291,7 @@ export default function Home() {
         authFetch(`${API_BASE_URL}/analytics/recent?limit=${recentLimit}`, {
           cache: "no-store",
         }),
+        authFetch(`${API_BASE_URL}/analytics/fallbacks`, { cache: "no-store" }),
       ]);
 
       if (
@@ -266,7 +300,8 @@ export default function Home() {
         !modelsRes.ok ||
         !costsRes.ok ||
         !latencyRes.ok ||
-        !recentRes.ok
+        !recentRes.ok ||
+        !fallbackRes.ok
       ) {
         throw new Error("Failed to load dashboard analytics.");
       }
@@ -277,6 +312,7 @@ export default function Home() {
       const costsData = await costsRes.json();
       const latencyData = await latencyRes.json();
       const recentData = await recentRes.json();
+      const fallbackData: FallbackBreakdowns = await fallbackRes.json();
 
       setSummary(summaryData);
       setRoutes(routesData);
@@ -284,6 +320,9 @@ export default function Home() {
       setCosts(costsData);
       setLatency(latencyData);
       setRecentRequests(recentData);
+      setFallbackByRoute(fallbackData.by_route || []);
+      setFallbackByModel(fallbackData.by_model || []);
+      setFallbackTrend(fallbackData.trend || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -318,6 +357,17 @@ export default function Home() {
     full_label: item.model_used,
   }));
 
+  const formattedFallbackByModel = fallbackByModel.map((item) => ({
+    ...item,
+    short_label: formatModelLabel(item.model_used),
+    full_label: item.model_used,
+  }));
+
+  const formattedFallbackTrend = fallbackTrend.map((item) => ({
+    ...item,
+    short_date: formatDateLabel(item.date),
+  }));
+
   const topRoute = [...routes].sort((left, right) => right.count - left.count)[0];
   const mostUsedModel = [...models].sort((left, right) => right.count - left.count)[0];
   const fastestModel = [...latency].sort(
@@ -325,6 +375,7 @@ export default function Home() {
   )[0];
   const fallbackRequests = summary?.fallback_requests ?? 0;
   const fallbackRate = summary?.fallback_rate_pct ?? 0;
+  const hasFallbackData = fallbackRequests > 0;
 
   const filteredRecentRequests = recentRequests
     .filter((row) =>
@@ -533,6 +584,47 @@ export default function Home() {
                 tooltipLabelKey="full_label"
               />
             </ChartCard>
+          </section>
+
+          <section className="rounded-3xl border border-white/70 bg-white/85 p-6 shadow-[0_16px_50px_-24px_rgba(15,23,42,0.24)] backdrop-blur-sm">
+            <div className="mb-5">
+              <h2 className="text-xl font-semibold">Fallback Breakdowns</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Track where fallback reroutes originate, which models resolve them,
+                and how fallback volume changes over time.
+              </p>
+            </div>
+
+            {hasFallbackData ? (
+              <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+                <ChartCard title="Fallbacks by Primary Route">
+                  <SimpleBarChart data={fallbackByRoute} xKey="route_key" barKey="count" />
+                </ChartCard>
+
+                <ChartCard title="Fallbacks by Resolved Model">
+                  <SimpleBarChart
+                    data={formattedFallbackByModel}
+                    xKey="short_label"
+                    barKey="count"
+                    tooltipLabelKey="full_label"
+                  />
+                </ChartCard>
+
+                <ChartCard title="Fallback Trend">
+                  <SimpleBarChart
+                    data={formattedFallbackTrend}
+                    xKey="short_date"
+                    barKey="count"
+                    tooltipLabelKey="date"
+                  />
+                </ChartCard>
+              </div>
+            ) : (
+              <EmptyStateCard
+                title="No fallback traffic yet"
+                description="Fallback breakdown charts will appear after at least one request is resolved through a backup route."
+              />
+            )}
           </section>
 
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

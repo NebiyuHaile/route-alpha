@@ -19,7 +19,15 @@ from app.llm_service import call_model
 from app.database import Base, engine, SessionLocal
 from app.models import ContactRequest, InferenceLog, User
 from app.email_utils import send_contact_notification
-from app.analytics import (get_summary_stats, get_route_breakdown, get_model_breakdown, get_cost_breakdown, get_latency_breakdown, get_recent_requests)
+from app.analytics import (
+    get_summary_stats,
+    get_route_breakdown,
+    get_model_breakdown,
+    get_cost_breakdown,
+    get_latency_breakdown,
+    get_recent_requests,
+    get_fallback_breakdowns,
+)
 
 Base.metadata.create_all(bind=engine)
 
@@ -189,6 +197,10 @@ def analytics_latency(current_user: User = Depends(get_current_user)):
 @app.get("/analytics/recent")
 def analytics_recent(limit: int = 10, current_user: User = Depends(get_current_user)):
     return get_recent_requests(limit=limit)
+
+@app.get("/analytics/fallbacks")
+def analytics_fallbacks(current_user: User = Depends(get_current_user)):
+    return get_fallback_breakdowns()
 
 
 @app.post("/infer")

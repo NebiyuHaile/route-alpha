@@ -29,6 +29,7 @@ RouteAlpha currently has five user-facing product surfaces:
 - bearer token authentication for protected API routes
 - analytics queries for summary, route, model, cost, latency, and recent request views
 - summary analytics include fallback count and fallback rate percentage
+- fallback breakdown endpoint for route-level, model-level, and time-trend analysis
 
 ### Frontend
 
@@ -46,6 +47,7 @@ RouteAlpha currently has five user-facing product surfaces:
   - summary cards
   - insight cards
   - fallback activity insight card
+  - fallback breakdown section (primary route, resolved model, trend)
   - route breakdown chart
   - model breakdown chart
   - cost by model chart

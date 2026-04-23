@@ -54,6 +54,7 @@ The project currently supports:
 - `POST /auth/register`
 - `POST /auth/login`
 - `GET /auth/me`
+- `GET /analytics/fallbacks`
 - analytics endpoints for summaries and breakdowns
 - a dedicated marketing front door connected to real app flows
 
@@ -88,6 +89,7 @@ The dashboard shows:
 - model breakdown
 - cost by model
 - latency by model
+- fallback breakdowns by route, model, and trend
 - recent requests table with fallback badges and resolved-route visibility
 
 ### Inference
