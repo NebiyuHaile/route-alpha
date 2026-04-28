@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Text, Float, Integer, DateTime
+from sqlalchemy import Boolean, Column, String, Text, Float, Integer, DateTime
 from datetime import datetime, UTC
 from app.database import Base
 
@@ -11,10 +11,40 @@ class InferenceLog(Base):
     priority = Column(String, nullable=True)
     route_key = Column(String, nullable=False)
     route_reason = Column(Text, nullable=False)
+    resolved_route_key = Column(String, nullable=True)
+    fallback_used = Column(Boolean, nullable=False, default=False)
+    fallback_reason = Column(Text, nullable=True)
+    attempted_routes = Column(Text, nullable=True)
+    attempted_models = Column(Text, nullable=True)
     model_used = Column(String, nullable=False)
     estimated_input_tokens = Column(Integer, nullable=False)
     estimated_output_tokens = Column(Integer, nullable=False)
     estimated_cost_usd = Column(Float, nullable=False)
     latency_ms = Column(Float, nullable=False)
     response = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+
+
+class ContactRequest(Base):
+    __tablename__ = "contact_requests"
+
+    request_id = Column(String, primary_key=True, index=True)
+    full_name = Column(String, nullable=False)
+    email = Column(String, nullable=False, index=True)
+    company = Column(String, nullable=True)
+    team_size = Column(String, nullable=True)
+    use_case = Column(String, nullable=False)
+    message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    user_id = Column(String, primary_key=True, index=True)
+    full_name = Column(String, nullable=False)
+    email = Column(String, nullable=False, unique=True, index=True)
+    company = Column(String, nullable=True)
+    password_hash = Column(String, nullable=False)
+    is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))

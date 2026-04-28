@@ -5,7 +5,7 @@ def choose_model(prompt: str, task_type: str = "general", priority: str = "balan
         return "cheap", "User requested low-cost route"
     
     if priority == "fast":
-        return "cheap", "User requested fastet route"
+        return "cheap", "User requested fastest route"
 
     if priority  == "quality":
         return "strong", "User requested highest-quality route"

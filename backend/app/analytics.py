@@ -9,11 +9,22 @@ def get_summary_stats():
         total_requests = db.query(func.count(InferenceLog.request_id)).scalar() or 0
         avg_latency = db.query(func.avg(InferenceLog.latency_ms)).scalar() or 0
         total_cost = db.query(func.sum(InferenceLog.estimated_cost_usd)).scalar() or 0
+        fallback_requests = (
+            db.query(func.count(InferenceLog.request_id))
+            .filter(InferenceLog.fallback_used.is_(True))
+            .scalar()
+            or 0
+        )
+        fallback_rate = (
+            (fallback_requests / total_requests) * 100 if total_requests else 0
+        )
 
         return {
             "total_requests": total_requests,
             "average_latency_ms": round(float(avg_latency), 2),
             "total_estimated_cost_usd": round(float(total_cost), 6),
+            "fallback_requests": fallback_requests,
+            "fallback_rate_pct": round(float(fallback_rate), 2),
         }
     finally:
         db.close()
@@ -120,6 +131,8 @@ def get_recent_requests(limit: int = 10):
                 "task_type": row.task_type,
                 "priority": row.priority,
                 "route_key": row.route_key,
+                "resolved_route_key": row.resolved_route_key,
+                "fallback_used": bool(row.fallback_used),
                 "model_used": row.model_used,
                 "estimated_cost_usd": row.estimated_cost_usd,
                 "latency_ms": row.latency_ms,

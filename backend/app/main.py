@@ -1,15 +1,51 @@
-from fastapi import FastAPI, HTTPException
+import json
+
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import inspect, text
 from uuid import uuid4
-from app.schemas import InferenceRequest
+from app.auth_utils import create_access_token, decode_access_token, hash_password, verify_password
+from app.schemas import (
+    AuthResponse,
+    ContactRequestCreate,
+    InferenceRequest,
+    UserLoginRequest,
+    UserRegisterRequest,
+    UserResponse,
+)
 from app.router import choose_model
 from app.llm_service import call_model
 from app.database import Base, engine, SessionLocal
-from app.models import InferenceLog
+from app.models import ContactRequest, InferenceLog, User
+from app.email_utils import send_contact_notification
 from app.analytics import (get_summary_stats, get_route_breakdown, get_model_breakdown, get_cost_breakdown, get_latency_breakdown, get_recent_requests)
 
 Base.metadata.create_all(bind=engine)
+
+
+def ensure_inference_log_columns() -> None:
+    inspector = inspect(engine)
+    existing_columns = {column["name"] for column in inspector.get_columns("inference_logs")}
+    column_definitions = {
+        "resolved_route_key": "ALTER TABLE inference_logs ADD COLUMN resolved_route_key VARCHAR",
+        "fallback_used": "ALTER TABLE inference_logs ADD COLUMN fallback_used BOOLEAN DEFAULT FALSE",
+        "fallback_reason": "ALTER TABLE inference_logs ADD COLUMN fallback_reason TEXT",
+        "attempted_routes": "ALTER TABLE inference_logs ADD COLUMN attempted_routes TEXT",
+        "attempted_models": "ALTER TABLE inference_logs ADD COLUMN attempted_models TEXT",
+    }
+
+    with engine.begin() as connection:
+        for column_name, statement in column_definitions.items():
+            if column_name in existing_columns:
+                continue
+            connection.execute(text(statement))
+
+
+ensure_inference_log_columns()
+
 app = FastAPI(title="RouteAlpha API")
+auth_scheme = HTTPBearer(auto_error=False)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],
@@ -19,39 +55,144 @@ app.add_middleware(
 )
 
 
+def serialize_user(user: User) -> UserResponse:
+    return UserResponse(
+        user_id=user.user_id,
+        full_name=user.full_name,
+        email=user.email,
+        company=user.company,
+    )
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(auth_scheme),
+):
+    if not credentials or credentials.scheme.lower() != "bearer":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required.",
+        )
+
+    try:
+        payload = decode_access_token(credentials.credentials)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(exc),
+        ) from exc
+
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.user_id == payload["sub"]).first()
+        if not user or not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found or inactive.",
+            )
+        return user
+    finally:
+        db.close()
+
+
 @app.get("/health")
 def health_check():
     return {"status": "ok", "service": "RouteAlpha backend"}
 
+
+@app.post("/auth/register", response_model=AuthResponse)
+def register(request: UserRegisterRequest):
+    db = SessionLocal()
+    try:
+        existing_user = db.query(User).filter(User.email == request.email.lower()).first()
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="An account with that email already exists.",
+            )
+
+        user = User(
+            user_id=str(uuid4()),
+            full_name=request.full_name.strip(),
+            email=request.email.lower().strip(),
+            company=request.company.strip() if request.company else None,
+            password_hash=hash_password(request.password),
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+        return AuthResponse(
+            access_token=create_access_token(user.user_id, user.email),
+            user=serialize_user(user),
+        )
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
+@app.post("/auth/login", response_model=AuthResponse)
+def login(request: UserLoginRequest):
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.email == request.email.lower()).first()
+        if not user or not verify_password(request.password, user.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password.",
+            )
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="This account is inactive.",
+            )
+
+        return AuthResponse(
+            access_token=create_access_token(user.user_id, user.email),
+            user=serialize_user(user),
+        )
+    finally:
+        db.close()
+
+
+@app.get("/auth/me", response_model=UserResponse)
+def auth_me(current_user: User = Depends(get_current_user)):
+    return serialize_user(current_user)
+
+
 @app.get("/analytics/summary")
-def analytics_summary():
+def analytics_summary(current_user: User = Depends(get_current_user)):
     return get_summary_stats()
 
 
 @app.get("/analytics/routes")
-def analytics_routes():
+def analytics_routes(current_user: User = Depends(get_current_user)):
     return get_route_breakdown()
 
 
 @app.get("/analytics/models")
-def analytics_models():
+def analytics_models(current_user: User = Depends(get_current_user)):
     return get_model_breakdown()
 
 @app.get("/analytics/costs")
-def analytics_costs():
+def analytics_costs(current_user: User = Depends(get_current_user)):
     return get_cost_breakdown()
 
 @app.get("/analytics/latency")
-def analytics_latency():
+def analytics_latency(current_user: User = Depends(get_current_user)):
     return get_latency_breakdown()
 
 @app.get("/analytics/recent")
-def analytics_recent(limit: int = 10):
+def analytics_recent(limit: int = 10, current_user: User = Depends(get_current_user)):
     return get_recent_requests(limit=limit)
 
 
 @app.post("/infer")
-def infer(request: InferenceRequest):
+def infer(request: InferenceRequest, current_user: User = Depends(get_current_user)):
     db = SessionLocal()
     try:
         route_key, route_reason = choose_model(
@@ -71,6 +212,11 @@ def infer(request: InferenceRequest):
             priority=request.priority,
             route_key=route_key,
             route_reason=route_reason,
+            resolved_route_key=result["resolved_route_key"],
+            fallback_used=result["fallback_used"],
+            fallback_reason=result["fallback_reason"],
+            attempted_routes=json.dumps(result["attempted_routes"]),
+            attempted_models=json.dumps(result["attempted_models"]),
             model_used=result["model_used"],
             estimated_input_tokens=result["estimated_input_tokens"],
             estimated_output_tokens=result["estimated_output_tokens"],
@@ -83,9 +229,14 @@ def infer(request: InferenceRequest):
         db.commit()
 
         return {
-            "request_id": str(uuid4()),
+            "request_id": request_id,
             "route_key": route_key,
             "route_reason": route_reason,
+            "resolved_route_key": result["resolved_route_key"],
+            "fallback_used": result["fallback_used"],
+            "fallback_reason": result["fallback_reason"],
+            "attempted_routes": result["attempted_routes"],
+            "attempted_models": result["attempted_models"],
             "model_used": result["model_used"],
             "task_type": request.task_type,
             "priority": request.priority,
@@ -96,6 +247,42 @@ def infer(request: InferenceRequest):
             "latency_ms": result["latency_ms"],
         }
 
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
+
+
+@app.post("/contact")
+def create_contact_request(request: ContactRequestCreate):
+    db = SessionLocal()
+    try:
+        request_id = str(uuid4())
+
+        contact_request = ContactRequest(
+            request_id=request_id,
+            full_name=request.full_name.strip(),
+            email=request.email.lower().strip(),
+            company=request.company.strip() if request.company else None,
+            team_size=request.team_size.strip() if request.team_size else None,
+            use_case=request.use_case.strip(),
+            message=request.message.strip() if request.message else None,
+        )
+
+        db.add(contact_request)
+        db.commit()
+
+        email_sent, email_status = send_contact_notification(
+            request_id=request_id, request=request
+        )
+
+        return {
+            "request_id": request_id,
+            "message": "Contact request submitted successfully.",
+            "email_sent": email_sent,
+            "email_status": email_status,
+        }
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
