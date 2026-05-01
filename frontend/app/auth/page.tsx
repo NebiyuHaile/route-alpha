@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import Navbar from "../../components/Navbar";
@@ -9,6 +9,14 @@ import { useAuth } from "../../components/AuthProvider";
 type Mode = "login" | "register";
 
 export default function AuthPage() {
+  return (
+    <Suspense fallback={<AuthPageShell />}>
+      <AuthPageContent />
+    </Suspense>
+  );
+}
+
+function AuthPageContent() {
   const [mode, setMode] = useState<Mode>("login");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -197,6 +205,37 @@ export default function AuthPage() {
                 </Link>
               </div>
             </form>
+          </section>
+        </div>
+      </main>
+    </>
+  );
+}
+
+function AuthPageShell() {
+  return (
+    <>
+      <Navbar />
+      <main className="min-h-screen px-6 py-10 lg:px-8">
+        <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[0.9fr_1.1fr]">
+          <section className="rounded-[2rem] border border-white/70 bg-[linear-gradient(180deg,rgba(15,23,42,0.98),rgba(30,41,59,0.94))] p-8 text-white shadow-[0_30px_90px_-45px_rgba(15,23,42,0.82)]">
+            <div className="h-4 w-40 animate-pulse rounded bg-white/20" />
+            <div className="mt-5 h-24 max-w-xl animate-pulse rounded-3xl bg-white/12" />
+            <div className="mt-8 grid gap-4">
+              <div className="h-24 animate-pulse rounded-[1.4rem] bg-white/8" />
+              <div className="h-24 animate-pulse rounded-[1.4rem] bg-white/8" />
+              <div className="h-24 animate-pulse rounded-[1.4rem] bg-white/8" />
+            </div>
+          </section>
+
+          <section className="rounded-[2rem] border border-white/70 bg-white/88 p-8 shadow-[0_24px_80px_-42px_rgba(15,23,42,0.32)] backdrop-blur-sm">
+            <div className="h-11 w-48 animate-pulse rounded-full bg-slate-100" />
+            <div className="mt-6 h-20 max-w-md animate-pulse rounded-3xl bg-slate-100" />
+            <div className="mt-8 space-y-5">
+              <div className="h-12 animate-pulse rounded-2xl bg-slate-100" />
+              <div className="h-12 animate-pulse rounded-2xl bg-slate-100" />
+              <div className="h-12 w-44 animate-pulse rounded-full bg-slate-200" />
+            </div>
           </section>
         </div>
       </main>

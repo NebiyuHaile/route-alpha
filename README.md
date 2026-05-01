@@ -27,6 +27,9 @@ Instead of sending every request to the same model, RouteAlpha routes prompts ac
 - shared responsive navigation across landing, dashboard, and inference pages
 - recent requests filtering, search, sorting, and row limit controls
 - fallback observability in the dashboard (summary fallback activity + row-level fallback state)
+- production-minded environment examples for frontend and backend deployment
+- configurable backend CORS origins for local, staging, and hosted frontends
+- routing policy tests for priority, task type, and prompt-length decisions
 
 ## Tech Stack
 
@@ -126,12 +129,42 @@ route-alpha/
 ├── PROJECT_STATUS.md
 ├── backend/
 │   ├── README.md
+│   ├── .env.example
 │   ├── app/
+│   ├── tests/
 │   ├── requirements.txt
 │   └── .env
 └── frontend/
     ├── README.md
+    ├── .env.example
     ├── app/
     ├── components/
     ├── package.json
     └── .env.local
+```
+
+## Deployment Readiness
+
+Copy the example environment files before deploying:
+
+```bash
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env.local
+```
+
+Set `DATABASE_URL`, `OPENROUTER_API_KEY`, `AUTH_SECRET_KEY`, and `CORS_ORIGINS`
+for the backend environment. Set `NEXT_PUBLIC_API_BASE_URL` and, for hosted
+metadata, `NEXT_PUBLIC_SITE_URL` for the frontend environment.
+
+Validation commands:
+
+```bash
+cd backend
+pytest
+```
+
+```bash
+cd frontend
+npm run lint
+npm run build
+```

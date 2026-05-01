@@ -6,6 +6,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import inspect, text
 from uuid import uuid4
 from app.auth_utils import create_access_token, decode_access_token, hash_password, verify_password
+from app.config import CORS_ORIGINS
 from app.schemas import (
     AuthResponse,
     ContactRequestCreate,
@@ -56,7 +57,7 @@ app = FastAPI(title="RouteAlpha API")
 auth_scheme = HTTPBearer(auto_error=False)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

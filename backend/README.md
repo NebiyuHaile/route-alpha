@@ -14,6 +14,7 @@ This service powers RouteAlpha's inference routing and analytics API.
 - analytics queries for the dashboard
 - contact request capture and email notification
 - account registration, login, and token-based auth
+- configurable CORS origins for local and hosted frontends
 
 ## Core Endpoints
 
@@ -147,6 +148,7 @@ http://127.0.0.1:8000/docs
 ```env
 OPENROUTER_API_KEY=your_openrouter_api_key_here
 DATABASE_URL=postgresql://postgres:your_password_here@localhost:5432/routealpha_db
+CORS_ORIGINS=http://localhost:3000,https://your-routealpha-frontend.example
 CONTACT_NOTIFICATION_EMAIL=nebiyuhaile385@gmail.com
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
@@ -156,6 +158,10 @@ SMTP_SENDER_EMAIL=your_gmail_address@gmail.com
 AUTH_SECRET_KEY=replace_with_a_long_random_secret
 AUTH_TOKEN_EXPIRE_HOURS=24
 ```
+
+Use `backend/.env.example` as the deployment checklist. `DATABASE_URL` is
+required at startup so misconfigured API instances fail loudly instead of
+starting with a broken database connection.
 
 ## Fallback Configuration
 
@@ -169,3 +175,11 @@ Notes:
 
 - the fallback executor deduplicates identical model names to avoid retrying the same model under multiple route aliases
 - schema upgrade logic in `app/main.py` adds fallback-related columns on startup if they do not already exist
+
+## Validation
+
+Run the routing policy tests with:
+
+```bash
+pytest
+```

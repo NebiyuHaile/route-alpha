@@ -46,7 +46,11 @@ Create `frontend/.env.local` with:
 
 ```env
 NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
+
+Use `frontend/.env.example` as a starting point for local and hosted
+environments.
 
 ## Key Files
 
@@ -84,5 +88,11 @@ The current UI is intentionally built around:
 For a quick frontend lint check:
 
 ```bash
-npx eslint app/page.tsx app/dashboard/page.tsx app/infer/page.tsx components/Navbar.tsx
+npm run lint
+```
+
+For a production compile check:
+
+```bash
+npm run build
 ```

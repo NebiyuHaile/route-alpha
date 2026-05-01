@@ -104,10 +104,13 @@ RouteAlpha currently has five user-facing product surfaces:
   - dashboard
   - inference playground
   - contact page
+- backend routing policy tests cover priority overrides, task type routing, and prompt-length routing
+- deployment environment examples exist for backend and frontend
 
 ## Next Likely Steps
 
 - add a docs or product-tour page
-- add screenshots or richer real data previews to the landing page
 - expand routing logic beyond current rule-based heuristics
-- add tests around routing, analytics, and page-level UI flows
+- add screenshots or richer real data previews to the landing page
+- add analytics endpoint tests and page-level UI flow tests
+- replace startup schema patching with formal Alembic migrations for hosted environments
