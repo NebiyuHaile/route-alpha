@@ -15,10 +15,16 @@ from app.schemas import ContactRequestCreate
 def send_contact_notification(
     request_id: str, request: ContactRequestCreate
 ) -> tuple[bool, str]:
-    if not SMTP_USERNAME or not SMTP_PASSWORD or not SMTP_SENDER_EMAIL:
+    if (
+        not SMTP_USERNAME
+        or not SMTP_PASSWORD
+        or not SMTP_SENDER_EMAIL
+        or not CONTACT_NOTIFICATION_EMAIL
+    ):
         return False, (
-            "SMTP is not configured. Set SMTP_USERNAME, SMTP_PASSWORD, and "
-            "SMTP_SENDER_EMAIL to enable contact notifications."
+            "SMTP is not configured. Set SMTP_USERNAME, SMTP_PASSWORD, "
+            "SMTP_SENDER_EMAIL, and CONTACT_NOTIFICATION_EMAIL to enable "
+            "contact notifications."
         )
 
     message = EmailMessage()

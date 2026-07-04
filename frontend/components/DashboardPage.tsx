@@ -238,7 +238,7 @@ function compareRecentRequests(
 }
 
 
-export default function Home() {
+export default function DashboardPage() {
   const { authFetch, isAuthenticated, isReady } = useAuth();
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [routes, setRoutes] = useState<RouteData[]>([]);
@@ -420,7 +420,8 @@ export default function Home() {
     return (
       <>
         <Navbar />
-        <main className="min-h-screen bg-slate-50 p-8 text-slate-900">
+        <RequireAuth>
+          <main className="min-h-screen p-8 text-slate-900">
           <div className="mx-auto max-w-7xl space-y-8">
             <div>
               <h1 className="text-4xl font-bold">RouteAlpha Dashboard</h1>
@@ -436,7 +437,8 @@ export default function Home() {
               </div>
             </div>
           </div>
-        </main>
+          </main>
+        </RequireAuth>
       </>
     );
   }
@@ -445,7 +447,8 @@ export default function Home() {
     return (
       <>
         <Navbar />
-        <main className="min-h-screen bg-slate-50 p-8 text-slate-900">
+        <RequireAuth>
+          <main className="min-h-screen p-8 text-slate-900">
           <div className="mx-auto max-w-7xl space-y-8">
             <div>
               <h1 className="text-4xl font-bold">RouteAlpha Dashboard</h1>
@@ -457,13 +460,14 @@ export default function Home() {
               <p className="mb-4 text-red-700">{error}</p>
               <button
                 onClick={() => loadDashboard(true)}
-                className="rounded-lg bg-slate-900 px-4 py-2 text-white transition hover:bg-slate-700"
+                className="inline-flex h-11 items-center justify-center rounded-full bg-slate-900 px-5 text-sm font-medium text-white transition hover:bg-slate-700"
               >
                 Retry
               </button>
             </div>
           </div>
-        </main>
+          </main>
+        </RequireAuth>
       </>
     );
   }
@@ -472,7 +476,7 @@ export default function Home() {
     <>
       <Navbar />
       <RequireAuth>
-        <main className="min-h-screen bg-slate-50 p-8 text-slate-900">
+        <main className="min-h-screen p-8 text-slate-900">
           <div className="mx-auto max-w-7xl space-y-8">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
@@ -485,7 +489,7 @@ export default function Home() {
             <button
               onClick={() => loadDashboard(true)}
               disabled={refreshing}
-              className="inline-flex h-11 items-center justify-center rounded-lg bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+              className="inline-flex h-11 items-center justify-center rounded-full bg-slate-900 px-5 text-sm font-medium text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
             >
               {refreshing ? "Refreshing..." : "Refresh dashboard"}
             </button>
@@ -639,10 +643,14 @@ export default function Home() {
 
               <div className="flex flex-wrap items-end gap-3">
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-medium uppercase tracking-wide text-slate-800">
+                  <label
+                    htmlFor="filter-route"
+                    className="text-xs font-medium uppercase tracking-wide text-slate-800"
+                  >
                     Route
                   </label>
                   <select
+                    id="filter-route"
                     value={selectedRoute}
                     onChange={(e) => setSelectedRoute(e.target.value)}
                     className="h-10 min-w-32 rounded-lg border border-slate-300 bg-white px-3 text-sm"
@@ -655,25 +663,38 @@ export default function Home() {
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-medium uppercase tracking-wide text-slate-800">
+                  <label
+                    htmlFor="filter-model"
+                    className="text-xs font-medium uppercase tracking-wide text-slate-800"
+                  >
                     Model
                   </label>
                   <select
+                    id="filter-model"
                     value={selectedModel}
                     onChange={(e) => setSelectedModel(e.target.value)}
                     className="h-10 min-w-40 rounded-lg border border-slate-300 bg-white px-3 text-sm"
                   >
                     <option value="all">all</option>
-                    <option value="gemini-flash-lite">gemini-flash-lite</option>
-                    <option value="gpt-4o-mini">gpt-4o-mini</option>
+                    {[...new Set(models.map((m) => formatModelLabel(m.model_used)))].map(
+                      (label) => (
+                        <option key={label} value={label}>
+                          {label}
+                        </option>
+                      )
+                    )}
                   </select>
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-medium uppercase tracking-wide text-slate-800">
+                  <label
+                    htmlFor="filter-limit"
+                    className="text-xs font-medium uppercase tracking-wide text-slate-800"
+                  >
                     Show
                   </label>
                   <select
+                    id="filter-limit"
                     value={recentLimit}
                     onChange={(e) => setRecentLimit(Number(e.target.value))}
                     className="h-10 min-w-24 rounded-lg border border-slate-300 bg-white px-3 text-sm"
@@ -685,10 +706,14 @@ export default function Home() {
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-medium uppercase tracking-wide text-slate-800">
+                  <label
+                    htmlFor="filter-search"
+                    className="text-xs font-medium uppercase tracking-wide text-slate-800"
+                  >
                     Search
                   </label>
                   <input
+                    id="filter-search"
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -889,7 +914,7 @@ function InsightCard({
 }) {
   return (
     <div className="rounded-3xl border border-slate-200/80 bg-linear-to-br from-white to-slate-50 p-5 shadow-[0_12px_36px_-28px_rgba(15,23,42,0.35)]">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
         {eyebrow}
       </p>
       <h3 className="mt-3 text-xl font-semibold text-slate-900">{title}</h3>
@@ -947,7 +972,12 @@ function SortableHeader({
   const indicator = isActive ? (direction === "asc" ? "▲" : "▼") : "↕";
 
   return (
-    <th className="px-4 py-3 font-medium">
+    <th
+      className="px-4 py-3 font-medium"
+      aria-sort={
+        isActive ? (direction === "asc" ? "ascending" : "descending") : "none"
+      }
+    >
       <button
         type="button"
         onClick={() => onSort(column)}
@@ -995,7 +1025,7 @@ function ChartTooltip({
 
   return (
     <div className="min-w-56 rounded-2xl border border-slate-200 bg-white/95 px-4 py-3 shadow-xl shadow-slate-200/70 backdrop-blur-sm">
-      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
         Model
       </p>
       <p className="mt-1 text-sm font-semibold text-slate-900">{title}</p>

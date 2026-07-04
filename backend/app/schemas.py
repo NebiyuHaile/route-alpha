@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr, Field
 
 class InferenceRequest(BaseModel):
-    prompt: str
+    prompt: str = Field(min_length=1, max_length=8000)
     task_type: str | None = "general"
     priority: str | None = "balanced"
 

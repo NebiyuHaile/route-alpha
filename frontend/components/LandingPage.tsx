@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useAuth } from "./AuthProvider";
 import Navbar from "./Navbar";
 
 type SummaryData = {
@@ -54,7 +55,7 @@ const pricingPlans = [
   },
   {
     name: "Growth",
-    price: "$299",
+    price: "$299/mo",
     detail: "For teams that need consistent routing controls and visibility.",
     cta: "Open dashboard",
     href: "/dashboard",
@@ -110,18 +111,27 @@ function getRouteMix(routes: RouteData[]) {
 }
 
 export default function LandingPage() {
+  const { authFetch, isAuthenticated, isReady } = useAuth();
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [routes, setRoutes] = useState<RouteData[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "offline">("loading");
 
   useEffect(() => {
+    if (!isReady) return;
+
+    // Analytics endpoints require auth; anonymous visitors see sample data.
+    if (!isAuthenticated) {
+      setStatus("offline");
+      return;
+    }
+
     let active = true;
 
     async function loadPreview() {
       try {
         const [summaryRes, routesRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/analytics/summary`, { cache: "no-store" }),
-          fetch(`${API_BASE_URL}/analytics/routes`, { cache: "no-store" }),
+          authFetch(`${API_BASE_URL}/analytics/summary`, { cache: "no-store" }),
+          authFetch(`${API_BASE_URL}/analytics/routes`, { cache: "no-store" }),
         ]);
 
         if (!summaryRes.ok || !routesRes.ok) {
@@ -149,7 +159,7 @@ export default function LandingPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [authFetch, isAuthenticated, isReady]);
 
   return (
     <>
@@ -199,7 +209,7 @@ export default function LandingPage() {
                   <div className="rounded-[1.5rem] border border-slate-200 bg-slate-950 p-5 text-white">
                     <div className="flex items-center justify-between text-xs uppercase tracking-[0.24em] text-slate-400">
                       <span>Live routing preview</span>
-                      <span>{status === "ready" ? "Connected" : "Fallback mode"}</span>
+                      <span>{status === "ready" ? "Connected" : "Sample data"}</span>
                     </div>
                     <div className="mt-6 grid grid-cols-2 gap-4">
                       <PreviewMetric
@@ -262,7 +272,7 @@ export default function LandingPage() {
               Platform
             </p>
             <h2 className="mt-4 text-4xl font-semibold tracking-tight text-slate-950">
-              Everything a serious AI product homepage should point toward is already in the product.
+              Route, observe, and tune every model decision from one platform.
             </h2>
           </div>
           <div className="mt-10 grid gap-6 lg:grid-cols-3">
@@ -323,11 +333,11 @@ export default function LandingPage() {
                 Pricing
               </p>
               <h2 className="mt-4 text-4xl font-semibold tracking-tight text-slate-950">
-                Designed to look and feel like a product company, not a side project.
+                Simple plans that scale with your routing volume.
               </h2>
             </div>
             <p className="max-w-xl text-base leading-7 text-slate-600">
-              These plans are presented as product packaging for the site experience and give the homepage the completeness users expect from a startup-grade platform.
+              Start free in the playground, then upgrade when your team needs shared visibility, routing controls, and governance.
             </p>
           </div>
           <div className="mt-10 grid gap-6 lg:grid-cols-3">
@@ -404,10 +414,10 @@ export default function LandingPage() {
               Ready to ship
             </p>
             <h2 className="mt-4 max-w-3xl text-4xl font-semibold tracking-tight">
-              Turn RouteAlpha into the kind of AI product site investors, customers, and teammates expect to see.
+              Stop overpaying for prompts your cheapest model could have handled.
             </h2>
             <p className="mt-4 max-w-2xl text-base leading-7 text-slate-200">
-              The marketing surface is now connected to real product flows, so visitors can move straight from the story into the dashboard or inference playground.
+              Run a prompt in the playground, watch the route decision land in the dashboard, or talk to us about your workload.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link

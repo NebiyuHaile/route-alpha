@@ -27,7 +27,7 @@ export default function Navbar() {
             <span className="block text-base font-semibold text-slate-900">
               RouteAlpha
             </span>
-            <span className="block text-xs uppercase tracking-[0.24em] text-slate-400">
+            <span className="block text-xs uppercase tracking-[0.24em] text-slate-500">
               AI Routing Platform
             </span>
           </span>
@@ -51,9 +51,6 @@ export default function Navbar() {
               <Link href="/contact" className="inline-flex h-10 items-center rounded-full px-4 text-sm font-medium text-slate-600 hover:bg-white hover:text-slate-900">
                 Contact
               </Link>
-              <Link href="/auth" className="inline-flex h-10 items-center rounded-full px-4 text-sm font-medium text-slate-600 hover:bg-white hover:text-slate-900">
-                Auth
-              </Link>
             </div>
           ) : (
             <div className="flex flex-wrap items-center gap-2 rounded-full border border-slate-200/80 bg-slate-100/80 p-1">
@@ -68,9 +65,6 @@ export default function Navbar() {
               </Link>
               <Link href="/contact" className={linkClass("/contact")}>
                 Contact
-              </Link>
-              <Link href="/auth" className={linkClass("/auth")}>
-                Auth
               </Link>
             </div>
           )}

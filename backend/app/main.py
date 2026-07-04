@@ -1,7 +1,11 @@
 import json
+import logging
+import time
+from collections import defaultdict, deque
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import inspect, text
 from uuid import uuid4
@@ -53,6 +57,8 @@ def ensure_inference_log_columns() -> None:
 
 ensure_inference_log_columns()
 
+logger = logging.getLogger("routealpha")
+
 app = FastAPI(title="RouteAlpha API")
 auth_scheme = HTTPBearer(auto_error=False)
 app.add_middleware(
@@ -62,6 +68,39 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Per-IP sliding-window limits: (max requests, window seconds).
+# In-memory, so limits apply per process; move to a shared store if the API
+# ever runs on more than one instance.
+RATE_LIMITS: dict[tuple[str, str], tuple[int, int]] = {
+    ("POST", "/auth/register"): (5, 60),
+    ("POST", "/auth/login"): (10, 60),
+    ("POST", "/contact"): (5, 60),
+    ("POST", "/infer"): (30, 60),
+}
+_rate_buckets: dict[str, deque[float]] = defaultdict(deque)
+
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    limit_config = RATE_LIMITS.get((request.method, request.url.path))
+    if limit_config:
+        max_requests, window_seconds = limit_config
+        client_ip = request.client.host if request.client else "unknown"
+        bucket = _rate_buckets[f"{request.url.path}:{client_ip}"]
+        now = time.monotonic()
+
+        while bucket and now - bucket[0] > window_seconds:
+            bucket.popleft()
+
+        if len(bucket) >= max_requests:
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Too many requests. Please try again shortly."},
+            )
+        bucket.append(now)
+
+    return await call_next(request)
 
 
 def serialize_user(user: User) -> UserResponse:
@@ -137,9 +176,10 @@ def register(request: UserRegisterRequest):
     except HTTPException:
         db.rollback()
         raise
-    except Exception as e:
+    except Exception:
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Registration failed")
+        raise HTTPException(status_code=500, detail="Registration failed. Please try again.")
     finally:
         db.close()
 
@@ -260,9 +300,13 @@ def infer(request: InferenceRequest, current_user: User = Depends(get_current_us
             "latency_ms": result["latency_ms"],
         }
 
-    except Exception as e:
+    except Exception:
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Inference request failed")
+        raise HTTPException(
+            status_code=500,
+            detail="Inference failed. Please try again shortly.",
+        )
     finally:
         db.close()
 
@@ -286,9 +330,15 @@ def create_contact_request(request: ContactRequestCreate):
         db.add(contact_request)
         db.commit()
 
-        email_sent, email_status = send_contact_notification(
-            request_id=request_id, request=request
-        )
+        try:
+            email_sent, email_status = send_contact_notification(
+                request_id=request_id, request=request
+            )
+        except Exception:
+            # The contact request is already saved; a notification failure
+            # should not surface as an error to the visitor.
+            logger.exception("Contact notification email failed")
+            email_sent, email_status = False, "Notification email could not be sent."
 
         return {
             "request_id": request_id,
@@ -296,8 +346,12 @@ def create_contact_request(request: ContactRequestCreate):
             "email_sent": email_sent,
             "email_status": email_status,
         }
-    except Exception as e:
+    except Exception:
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Contact request failed")
+        raise HTTPException(
+            status_code=500,
+            detail="Could not submit your request. Please try again.",
+        )
     finally:
         db.close()

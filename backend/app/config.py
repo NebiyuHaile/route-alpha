@@ -24,16 +24,18 @@ def _get_list_env(name: str, default: list[str]) -> list[str]:
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL")
 CORS_ORIGINS = _get_list_env("CORS_ORIGINS", ["http://localhost:3000"])
-CONTACT_NOTIFICATION_EMAIL = os.getenv(
-    "CONTACT_NOTIFICATION_EMAIL",
-    "nebiyuhaile385@gmail.com",
-)
+CONTACT_NOTIFICATION_EMAIL = os.getenv("CONTACT_NOTIFICATION_EMAIL")
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = _get_int_env("SMTP_PORT", 587)
 SMTP_USERNAME = os.getenv("SMTP_USERNAME")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 SMTP_SENDER_EMAIL = os.getenv("SMTP_SENDER_EMAIL", SMTP_USERNAME or "")
-AUTH_SECRET_KEY = os.getenv("AUTH_SECRET_KEY", "routealpha-dev-secret-change-me")
+AUTH_SECRET_KEY = os.getenv("AUTH_SECRET_KEY")
+if not AUTH_SECRET_KEY:
+    raise RuntimeError(
+        "AUTH_SECRET_KEY is required. Set it to a long random secret before "
+        "starting the RouteAlpha API."
+    )
 AUTH_TOKEN_EXPIRE_HOURS = _get_int_env("AUTH_TOKEN_EXPIRE_HOURS", 24)
 
 MODEL_CATALOG = {
