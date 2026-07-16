@@ -1,9 +1,17 @@
+from typing import Any
+
 from pydantic import BaseModel, EmailStr, Field
 
+from app.services.pareto_router import RoutingPolicy
+
 class InferenceRequest(BaseModel):
-    prompt: str
+    """Validated request sent to the inference gateway."""
+
+    prompt: str = Field(min_length=1, max_length=100_000)
     task_type: str | None = "general"
     priority: str | None = "balanced"
+    routing_policy: RoutingPolicy | None = None
+    expected_json_schema: dict[str, Any] | None = None
 
 
 class ContactRequestCreate(BaseModel):

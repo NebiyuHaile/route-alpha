@@ -22,6 +22,7 @@ class InferenceLog(Base):
     estimated_cost_usd = Column(Float, nullable=False)
     latency_ms = Column(Float, nullable=False)
     response = Column(Text, nullable=False)
+    expected_json_schema = Column(Text, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
 
@@ -48,3 +49,17 @@ class User(Base):
     password_hash = Column(String, nullable=False)
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+
+
+class ModelTaskPerformance(Base):
+    """Persisted evaluator feedback used to adjust model accuracy by task type."""
+
+    __tablename__ = "model_task_performance"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    model_used = Column(String, nullable=False, index=True)
+    task_type = Column(String, nullable=False, index=True)
+    accuracy_rating = Column(Float, nullable=False)
+    sample_count = Column(Integer, nullable=False, default=0)
+    failure_count = Column(Integer, nullable=False, default=0)
+    updated_at = Column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))

@@ -16,11 +16,27 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 SMTP_SENDER_EMAIL = os.getenv("SMTP_SENDER_EMAIL", SMTP_USERNAME or "")
 AUTH_SECRET_KEY = os.getenv("AUTH_SECRET_KEY", "routealpha-dev-secret-change-me")
 AUTH_TOKEN_EXPIRE_HOURS = int(os.getenv("AUTH_TOKEN_EXPIRE_HOURS", "24"))
+EMBEDDING_MODEL_DIR = os.getenv("EMBEDDING_MODEL_DIR", "./models/all-MiniLM-L6-v2-onnx")
+EMBEDDING_MAX_LENGTH = int(os.getenv("EMBEDDING_MAX_LENGTH", "128"))
+TELEMETRY_WINDOW_SIZE = int(os.getenv("TELEMETRY_WINDOW_SIZE", "200"))
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", CELERY_BROKER_URL)
+EVALUATOR_SAMPLE_SIZE = int(os.getenv("EVALUATOR_SAMPLE_SIZE", "100"))
+EVALUATOR_FAILURE_THRESHOLD = float(os.getenv("EVALUATOR_FAILURE_THRESHOLD", "0.25"))
+JUDGE_MODEL = os.getenv("JUDGE_MODEL", "openrouter/openai/gpt-4o")
 
 MODEL_CATALOG = {
     "cheap": "openrouter/google/gemini-2.0-flash-lite-001",
     "medium": "openrouter/openai/gpt-4o-mini",
     "strong": "openrouter/openai/gpt-4o-mini"
+}
+
+# Ratings are deliberately explicit product priors. Live evaluator feedback is
+# persisted separately and takes precedence over these values at routing time.
+MODEL_ACCURACY_RATINGS = {
+    "cheap": 0.68,
+    "medium": 0.82,
+    "strong": 0.93,
 }
 
 FALLBACK_ROUTE_ORDER = {

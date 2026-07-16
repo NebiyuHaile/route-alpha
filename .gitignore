@@ -10,6 +10,9 @@ venv/
 backend/venv/
 .venv/
 
+# Downloaded ONNX runtime assets are deployment artifacts, not source code.
+backend/models/
+
 # Environment variables
 .env
 backend/.env
