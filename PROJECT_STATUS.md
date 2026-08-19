@@ -15,14 +15,23 @@ RouteAlpha currently has five user-facing product surfaces:
 ### Backend
 
 - FastAPI API with health and inference endpoints
-- rule-based routing across `cheap`, `medium`, and `strong`
+- route-tier abstraction across `cheap`, `medium`, and `strong`
+- static rule-based routing retained as a safe fallback
+- local ONNX semantic classification for `code_generation`, `creative_writing`, `classification`, and `summarization`
+- dynamic Pareto-style model selection balancing normalized cost, latency, and accuracy
+- validated per-request routing policies with cost, latency, and accuracy weights that sum to 1.0
+- bounded in-memory moving telemetry windows for route cost and latency
+- task-specific model accuracy ratings, including evaluator-adjusted persisted ratings
 - fallback routing across ordered route tiers when primary calls fail
 - task type and priority-aware route selection
-- route reasoning returned with each inference response
+- route reasoning, semantic match, and candidate routing scores returned with each inference response
 - LiteLLM and OpenRouter integration for real model calls
 - latency, token, and estimated cost tracking
 - PostgreSQL-backed inference logging
 - fallback metadata logging (`resolved_route_key`, `fallback_used`, attempted routes/models)
+- optional expected JSON Schema capture for structured-output evaluation
+- Celery evaluator that validates structured responses or uses an LLM-as-a-judge for open-ended responses
+- evaluator feedback loop that lowers a model's task-specific accuracy rating after sustained failures
 - backend-backed contact request capture
 - email notification delivery for contact requests
 - user account registration and login
@@ -81,6 +90,11 @@ RouteAlpha currently has five user-facing product surfaces:
 - `frontend/components/DashboardPage.tsx` contains the dashboard experience extracted from the previous homepage
 - `frontend/components/Navbar.tsx` is the shared nav across all app surfaces
 - `frontend/app/contact/page.tsx` is the lead capture and demo request entrypoint
+- `backend/app/services/embedding_router.py` contains the local ONNX semantic classifier
+- `backend/app/services/pareto_router.py` contains routing-policy validation, telemetry, and Pareto scoring
+- `backend/app/tasks/evaluator.py` contains the asynchronous evaluator and feedback loop
+- `docs/dynamic_routing.md` documents the semantic-routing pipeline and Pareto math
+- `docs/run_routealpha_locally.md` documents local startup with SQLite or PostgreSQL
 
 ## Recent Product Direction
 
@@ -91,6 +105,8 @@ RouteAlpha currently has five user-facing product surfaces:
 - added the first real auth layer so product workflows can be gated behind accounts
 - added fallback routing so failed primary model attempts can resolve via backup routes
 - surfaced fallback observability in dashboard insights and recent-request rows
+- evolved routing from purely static heuristics into semantic and multi-objective dynamic selection
+- kept static routing as the fail-safe path when optional local semantic assets or dynamic dependencies are unavailable
 - kept the design language polished and product-oriented instead of purely internal-tool styling
 
 ## Verified Working State
@@ -102,10 +118,20 @@ RouteAlpha currently has five user-facing product surfaces:
   - dashboard
   - inference playground
   - contact page
+- backend Phase 1 modules compile and smoke checks cover Pareto policy validation, route selection, FastAPI import, and semantic-router fallback behavior
+
+## Runtime Notes
+
+- local ONNX semantic classification requires `model.onnx` and `tokenizer.json` in the configured `EMBEDDING_MODEL_DIR`; the API safely falls back to static routing when they are absent or invalid
+- continuous evaluator feedback requires a configured Celery broker and `OPENROUTER_API_KEY` for open-ended LLM-as-a-judge evaluations
+- PostgreSQL is the intended production datastore; the local run guide also documents SQLite for a quick local demo
 
 ## Next Likely Steps
 
 - add a docs or product-tour page
 - add screenshots or richer real data previews to the landing page
-- expand routing logic beyond current rule-based heuristics
 - add tests around routing, analytics, and page-level UI flows
+- provision and verify the Celery broker for continuous evaluator feedback
+- replace process-local telemetry with a shared store before horizontally scaling the API
+- differentiate the current `medium` and `strong` route model mappings with production benchmarking
+- implement and validate the planned Phase 2 high-performance data/control-plane split before enabling it

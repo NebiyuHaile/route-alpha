@@ -8,12 +8,25 @@ import { useAuth } from "../../components/AuthProvider";
 
 type Mode = "login" | "register";
 
+function getPasswordRuleError(password: string) {
+  const missingRequirements: string[] = [];
+  if (password.length < 8) missingRequirements.push("at least 8 characters");
+  if (!/[A-Za-z]/.test(password)) missingRequirements.push("at least one letter");
+  if (!/\d/.test(password)) missingRequirements.push("at least one number");
+
+  return missingRequirements.length
+    ? `Password must include ${missingRequirements.join(", ")}.`
+    : "";
+}
+
 export default function AuthPage() {
   const [mode, setMode] = useState<Mode>("login");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [company, setCompany] = useState("");
   const [password, setPassword] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [passwordRuleError, setPasswordRuleError] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const { isAuthenticated, isReady, login, register } = useAuth();
@@ -29,12 +42,17 @@ export default function AuthPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const validationError = mode === "register" ? getPasswordRuleError(password) : "";
+    if (validationError) {
+      setPasswordRuleError(validationError);
+      return;
+    }
     setLoading(true);
     setError("");
 
     try {
       if (mode === "login") {
-        await login(email, password);
+        await login(email, password, otpCode || undefined);
       } else {
         await register({
           full_name: fullName,
@@ -50,6 +68,13 @@ export default function AuthPage() {
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+  function handlePasswordChange(value: string) {
+    setPassword(value);
+    if (mode === "register") {
+      setPasswordRuleError(getPasswordRuleError(value));
     }
   }
 
@@ -90,7 +115,10 @@ export default function AuthPage() {
             <div className="inline-flex rounded-full border border-slate-200 bg-slate-100 p-1">
               <button
                 type="button"
-                onClick={() => setMode("login")}
+                onClick={() => {
+                  setMode("login");
+                  setPasswordRuleError("");
+                }}
                 className={`rounded-full px-4 py-2 text-sm font-medium ${
                   mode === "login"
                     ? "bg-slate-950 text-white"
@@ -101,7 +129,10 @@ export default function AuthPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setMode("register")}
+                onClick={() => {
+                  setMode("register");
+                  setPasswordRuleError(getPasswordRuleError(password));
+                }}
                 className={`rounded-full px-4 py-2 text-sm font-medium ${
                   mode === "register"
                     ? "bg-slate-950 text-white"
@@ -161,13 +192,31 @@ export default function AuthPage() {
                 <input
                   type="password"
                   value={password}
-                  onChange={(event) => setPassword(event.target.value)}
+                  onChange={(event) => handlePasswordChange(event.target.value)}
                   className="h-12 w-full rounded-2xl border border-slate-300 bg-white px-4 outline-none focus:border-teal-400 focus:ring-4 focus:ring-teal-100"
-                  placeholder="At least 8 characters"
+                  placeholder="8+ characters, with a letter and number"
                   minLength={8}
                   required
                 />
               </Field>
+
+              {mode === "login" ? (
+                <Field label="Authenticator code (if 2FA is enabled)">
+                  <input
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={otpCode}
+                    onChange={(event) => setOtpCode(event.target.value.replace(/\s/g, ""))}
+                    className="h-12 w-full rounded-2xl border border-slate-300 bg-white px-4 outline-none focus:border-teal-400 focus:ring-4 focus:ring-teal-100"
+                    placeholder="123456"
+                    maxLength={8}
+                  />
+                </Field>
+              ) : null}
+
+              {mode === "register" && passwordRuleError ? (
+                <p className="-mt-3 text-sm text-red-600">{passwordRuleError}</p>
+              ) : null}
 
               {error ? (
                 <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

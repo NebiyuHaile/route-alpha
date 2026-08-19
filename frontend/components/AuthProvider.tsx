@@ -14,6 +14,7 @@ type AuthUser = {
   full_name: string;
   email: string;
   company?: string | null;
+  two_factor_enabled: boolean;
 };
 
 type AuthPayload = {
@@ -27,7 +28,7 @@ type AuthContextValue = {
   token: string | null;
   isAuthenticated: boolean;
   isReady: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, otpCode?: string) => Promise<void>;
   register: (payload: {
     full_name: string;
     email: string;
@@ -150,8 +151,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     persistSession(data.access_token, data.user);
   }, [persistSession]);
 
-  const login = useCallback(async (email: string, password: string) => {
-    await handleAuthRequest("/auth/login", { email, password });
+  const login = useCallback(async (email: string, password: string, otpCode?: string) => {
+    await handleAuthRequest(
+      "/auth/login",
+      otpCode ? { email, password, otp_code: otpCode } : { email, password }
+    );
   }, [handleAuthRequest]);
 
   const register = useCallback(async (payload: {

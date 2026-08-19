@@ -1,11 +1,17 @@
 import json
 import asyncio
 import logging
+import math
+import time
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, HTTPException, status
+import pyotp
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from limits import parse
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy import inspect, text
 from uuid import uuid4
 from app.auth_utils import create_access_token, decode_access_token, hash_password, verify_password
@@ -13,6 +19,8 @@ from app.schemas import (
     AuthResponse,
     ContactRequestCreate,
     InferenceRequest,
+    TwoFactorEnableRequest,
+    TwoFactorSetupResponse,
     UserLoginRequest,
     UserRegisterRequest,
     UserResponse,
@@ -29,6 +37,10 @@ from app.services.pareto_router import ParetoRouter, RoutingPolicy, TelemetryTra
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 logger = logging.getLogger(__name__)
+
+LOGIN_FAILURE_LIMIT = parse("5/15 minutes")
+LOGIN_FAILURE_SCOPE = "auth-login-failures"
+limiter = Limiter(key_func=get_remote_address, storage_uri="memory://")
 
 embedding_router = EmbeddingRouter(EMBEDDING_MODEL_DIR, EMBEDDING_MAX_LENGTH)
 telemetry_tracker = TelemetryTracker()
@@ -59,6 +71,25 @@ def ensure_inference_log_columns() -> None:
 ensure_inference_log_columns()
 
 
+def ensure_user_columns() -> None:
+    """Add auth-security columns for existing local databases without a migration tool."""
+    inspector = inspect(engine)
+    existing_columns = {column["name"] for column in inspector.get_columns("users")}
+    column_definitions = {
+        "is_admin": "ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT FALSE",
+        "two_factor_enabled": "ALTER TABLE users ADD COLUMN two_factor_enabled BOOLEAN DEFAULT FALSE",
+        "totp_secret": "ALTER TABLE users ADD COLUMN totp_secret VARCHAR",
+    }
+
+    with engine.begin() as connection:
+        for column_name, statement in column_definitions.items():
+            if column_name not in existing_columns:
+                connection.execute(text(statement))
+
+
+ensure_user_columns()
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     """Initialize optional local routing resources without blocking API startup."""
@@ -67,6 +98,7 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="RouteAlpha API", lifespan=lifespan)
+app.state.limiter = limiter
 auth_scheme = HTTPBearer(auto_error=False)
 app.add_middleware(
     CORSMiddleware,
@@ -83,6 +115,29 @@ def serialize_user(user: User) -> UserResponse:
         full_name=user.full_name,
         email=user.email,
         company=user.company,
+        two_factor_enabled=user.two_factor_enabled,
+    )
+
+
+def _login_failure_key(request: Request, email: str) -> str:
+    """Scope failed-login attempts to the source IP and normalized account."""
+    return f"{get_remote_address(request)}:{email.strip().lower()}"
+
+
+def enforce_failed_login_limit(request: Request, email: str) -> None:
+    """Record a failed attempt with SlowAPI's limiter and reject excess attempts."""
+    key = _login_failure_key(request, email)
+    if limiter.limiter.hit(LOGIN_FAILURE_LIMIT, key, LOGIN_FAILURE_SCOPE):
+        return
+
+    window = limiter.limiter.get_window_stats(
+        LOGIN_FAILURE_LIMIT, key, LOGIN_FAILURE_SCOPE
+    )
+    retry_after = max(1, math.ceil(window.reset_time - time.time()))
+    raise HTTPException(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        detail="Too many failed login attempts. Try again after the retry period.",
+        headers={"Retry-After": str(retry_after)},
     )
 
 
@@ -114,6 +169,16 @@ def get_current_user(
         return user
     finally:
         db.close()
+
+
+def require_admin(current_user: User = Depends(get_current_user)) -> User:
+    """Require a server-side administrator role for future privileged routes."""
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Administrator access is required.",
+        )
+    return current_user
 
 
 @app.get("/health")
@@ -158,11 +223,12 @@ def register(request: UserRegisterRequest):
 
 
 @app.post("/auth/login", response_model=AuthResponse)
-def login(request: UserLoginRequest):
+def login(request: UserLoginRequest, http_request: Request):
     db = SessionLocal()
     try:
         user = db.query(User).filter(User.email == request.email.lower()).first()
         if not user or not verify_password(request.password, user.password_hash):
+            enforce_failed_login_limit(http_request, request.email)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid email or password.",
@@ -172,6 +238,14 @@ def login(request: UserLoginRequest):
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="This account is inactive.",
             )
+        if user.two_factor_enabled:
+            if not request.otp_code or not user.totp_secret or not pyotp.TOTP(
+                user.totp_secret
+            ).verify(request.otp_code, valid_window=1):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="A valid two-factor authentication code is required.",
+                )
 
         return AuthResponse(
             access_token=create_access_token(user.user_id, user.email),
@@ -184,6 +258,72 @@ def login(request: UserLoginRequest):
 @app.get("/auth/me", response_model=UserResponse)
 def auth_me(current_user: User = Depends(get_current_user)):
     return serialize_user(current_user)
+
+
+@app.post("/auth/2fa/setup", response_model=TwoFactorSetupResponse)
+def setup_two_factor(current_user: User = Depends(get_current_user)):
+    """Create a new authenticator-app secret; a separate code verification enables it."""
+    if current_user.two_factor_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Two-factor authentication is already enabled.",
+        )
+
+    secret = pyotp.random_base32()
+    current_user.totp_secret = secret
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.user_id == current_user.user_id).first()
+        if not user:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive.")
+        user.totp_secret = secret
+        user.two_factor_enabled = False
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+    return TwoFactorSetupResponse(
+        secret=secret,
+        provisioning_uri=pyotp.TOTP(secret).provisioning_uri(
+            name=current_user.email, issuer_name="RouteAlpha"
+        ),
+    )
+
+
+@app.post("/auth/2fa/enable", response_model=UserResponse)
+def enable_two_factor(
+    request: TwoFactorEnableRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """Verify the setup code before enabling mandatory TOTP at login."""
+    if not current_user.totp_secret:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Set up two-factor authentication before enabling it.",
+        )
+    if not pyotp.TOTP(current_user.totp_secret).verify(request.otp_code, valid_window=1):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid two-factor authentication code.",
+        )
+
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.user_id == current_user.user_id).first()
+        if not user:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive.")
+        user.two_factor_enabled = True
+        db.commit()
+        db.refresh(user)
+        return serialize_user(user)
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
 
 
 @app.get("/analytics/summary")

@@ -48,6 +48,9 @@ class User(Base):
     company = Column(String, nullable=True)
     password_hash = Column(String, nullable=False)
     is_active = Column(Boolean, nullable=False, default=True)
+    is_admin = Column(Boolean, nullable=False, default=False)
+    two_factor_enabled = Column(Boolean, nullable=False, default=False)
+    totp_secret = Column(String, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
 

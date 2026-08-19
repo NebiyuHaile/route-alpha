@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, ReactNode, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "../../components/AuthProvider";
 import Navbar from "../../components/Navbar";
@@ -10,6 +10,9 @@ type InferenceResult = {
   request_id: string;
   route_key: string;
   route_reason: string;
+  resolved_route_key: string | null;
+  fallback_used: boolean;
+  fallback_reason: string | null;
   model_used: string;
   task_type: string | null;
   priority: string | null;
@@ -18,6 +21,10 @@ type InferenceResult = {
   estimated_cost_usd: number;
   response: string;
   latency_ms: number;
+  semantic_category: string | null;
+  semantic_similarity: number | null;
+  pareto_score: number | null;
+  candidate_scores: Record<string, Record<string, number>> | null;
 };
 
 const API_BASE_URL =
@@ -37,6 +44,7 @@ export default function InferPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<InferenceResult | null>(null);
+  const [copied, setCopied] = useState(false);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -44,6 +52,7 @@ export default function InferPage() {
     setLoading(true);
     setError("");
     setResult(null);
+    setCopied(false);
 
     try {
       const response = await authFetch(`${API_BASE_URL}/infer`, {
@@ -78,6 +87,15 @@ export default function InferPage() {
     setPriority("balanced");
     setError("");
     setResult(null);
+    setCopied(false);
+  }
+
+  async function copyResponse() {
+    if (!result) return;
+
+    await navigator.clipboard.writeText(result.response);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1800);
   }
 
   return (
@@ -226,6 +244,31 @@ export default function InferPage() {
                 </div>
               </div>
 
+              <div className="flex flex-wrap items-center gap-2 border-y border-slate-100 py-4 text-sm">
+                <ResultBadge label="Selected" value={result.route_key} tone="blue" />
+                <ResultBadge
+                  label="Resolved"
+                  value={result.resolved_route_key || result.route_key}
+                  tone="slate"
+                />
+                {result.fallback_used ? (
+                  <ResultBadge label="Fallback" value="Used" tone="amber" />
+                ) : (
+                  <ResultBadge label="Fallback" value="Not needed" tone="emerald" />
+                )}
+                {result.semantic_category && (
+                  <ResultBadge
+                    label="Semantic match"
+                    value={`${result.semantic_category}${
+                      result.semantic_similarity !== null
+                        ? ` · ${Math.round(result.semantic_similarity * 100)}%`
+                        : ""
+                    }`}
+                    tone="violet"
+                  />
+                )}
+              </div>
+
               <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
                 <InfoCard label="Request ID" value={result.request_id} />
                 <InfoCard label="Route Key" value={result.route_key} />
@@ -249,14 +292,50 @@ export default function InferPage() {
                   label="Latency"
                   value={`${result.latency_ms.toFixed(2)} ms`}
                 />
+                {result.pareto_score !== null && (
+                  <InfoCard
+                    label="Pareto Score"
+                    value={result.pareto_score.toFixed(4)}
+                  />
+                )}
               </div>
 
-              <div>
-                <h3 className="mb-2 text-lg font-semibold">Response</h3>
-                <div className="whitespace-pre-wrap rounded-2xl border border-slate-200 bg-slate-50 p-4 leading-7">
-                  {result.response}
+              {result.fallback_used && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  <span className="font-semibold">Fallback completed: </span>
+                  The primary route was unavailable, so RouteAlpha completed this request
+                  using a backup route.
                 </div>
-              </div>
+              )}
+
+              <section
+                aria-labelledby="model-response-heading"
+                className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/80"
+              >
+                <div className="flex flex-col gap-3 border-b border-slate-200 bg-white/80 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                      Generated output
+                    </p>
+                    <h3 id="model-response-heading" className="mt-1 text-lg font-semibold text-slate-900">
+                      Response
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={copyResponse}
+                    className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:border-slate-400 hover:bg-slate-50"
+                  >
+                    {copied ? "Copied" : "Copy response"}
+                  </button>
+                </div>
+                <div className="px-5 py-6 text-[1.02rem] leading-8 text-slate-700">
+                  <MarkdownResponse content={result.response} />
+                </div>
+                <p aria-live="polite" className="sr-only">
+                  {copied ? "Response copied to clipboard." : ""}
+                </p>
+              </section>
             </section>
           )}
         </div>
@@ -288,4 +367,150 @@ function InfoCard({ label, value }: { label: string; value: string }) {
       <p className="break-all text-slate-900">{value}</p>
     </div>
   );
+}
+
+function ResultBadge({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: "blue" | "slate" | "emerald" | "amber" | "violet";
+}) {
+  const toneClasses = {
+    blue: "border-blue-200 bg-blue-50 text-blue-800",
+    slate: "border-slate-200 bg-slate-50 text-slate-700",
+    emerald: "border-emerald-200 bg-emerald-50 text-emerald-800",
+    amber: "border-amber-200 bg-amber-50 text-amber-800",
+    violet: "border-violet-200 bg-violet-50 text-violet-800",
+  };
+
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 ${toneClasses[tone]}`}>
+      <span className="text-xs font-medium text-slate-500">{label}</span>
+      <span className="font-semibold">{value}</span>
+    </span>
+  );
+}
+
+function MarkdownResponse({ content }: { content: string }) {
+  const blocks: ReactNode[] = [];
+  const lines = content.replace(/\r\n/g, "\n").split("\n");
+  let index = 0;
+
+  while (index < lines.length) {
+    const line = lines[index];
+
+    if (!line.trim()) {
+      index += 1;
+      continue;
+    }
+
+    if (line.startsWith("```")) {
+      const language = line.slice(3).trim();
+      const codeLines: string[] = [];
+      index += 1;
+      while (index < lines.length && !lines[index].startsWith("```")) {
+        codeLines.push(lines[index]);
+        index += 1;
+      }
+      index += 1;
+      blocks.push(
+        <div key={`code-${index}`} className="my-5 overflow-hidden rounded-xl border border-slate-800 bg-slate-950">
+          {language && (
+            <div className="border-b border-slate-800 px-4 py-2 text-xs font-medium uppercase tracking-wide text-slate-400">
+              {language}
+            </div>
+          )}
+          <pre className="overflow-x-auto p-4 text-sm leading-6 text-slate-100">
+            <code>{codeLines.join("\n")}</code>
+          </pre>
+        </div>
+      );
+      continue;
+    }
+
+    const heading = /^(#{1,3})\s+(.+)$/.exec(line);
+    if (heading) {
+      const headingClasses = {
+        1: "mt-1 text-2xl font-bold tracking-tight text-slate-900",
+        2: "mt-7 text-xl font-semibold text-slate-900",
+        3: "mt-6 text-lg font-semibold text-slate-900",
+      };
+      const level = heading[1].length as 1 | 2 | 3;
+      const HeadingTag = `h${level}` as "h1" | "h2" | "h3";
+      blocks.push(
+        <HeadingTag key={`heading-${index}`} className={headingClasses[level]}>
+          {renderInlineMarkdown(heading[2])}
+        </HeadingTag>
+      );
+      index += 1;
+      continue;
+    }
+
+    const unordered = /^[-*+]\s+(.+)$/.exec(line);
+    if (unordered) {
+      const items: string[] = [];
+      while (index < lines.length) {
+        const item = /^[-*+]\s+(.+)$/.exec(lines[index]);
+        if (!item) break;
+        items.push(item[1]);
+        index += 1;
+      }
+      blocks.push(
+        <ul key={`unordered-${index}`} className="my-4 list-disc space-y-2 pl-6 marker:text-slate-400">
+          {items.map((item, itemIndex) => <li key={itemIndex}>{renderInlineMarkdown(item)}</li>)}
+        </ul>
+      );
+      continue;
+    }
+
+    const ordered = /^\d+\.\s+(.+)$/.exec(line);
+    if (ordered) {
+      const items: string[] = [];
+      while (index < lines.length) {
+        const item = /^\d+\.\s+(.+)$/.exec(lines[index]);
+        if (!item) break;
+        items.push(item[1]);
+        index += 1;
+      }
+      blocks.push(
+        <ol key={`ordered-${index}`} className="my-4 list-decimal space-y-3 pl-6 marker:font-semibold marker:text-slate-500">
+          {items.map((item, itemIndex) => <li key={itemIndex}>{renderInlineMarkdown(item)}</li>)}
+        </ol>
+      );
+      continue;
+    }
+
+    const paragraphLines: string[] = [];
+    while (index < lines.length && lines[index].trim()) {
+      if (lines[index].startsWith("```") || /^(#{1,3})\s+/.test(lines[index]) || /^[-*+]\s+/.test(lines[index]) || /^\d+\.\s+/.test(lines[index])) {
+        break;
+      }
+      paragraphLines.push(lines[index]);
+      index += 1;
+    }
+    blocks.push(
+      <p key={`paragraph-${index}`} className="mb-4 last:mb-0">
+        {renderInlineMarkdown(paragraphLines.join(" "))}
+      </p>
+    );
+  }
+
+  return <>{blocks}</>;
+}
+
+function renderInlineMarkdown(text: string): ReactNode[] {
+  const segments = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).filter(Boolean);
+
+  return segments.map((segment, index) => {
+    if (segment.startsWith("**") && segment.endsWith("**")) {
+      return <strong key={index} className="font-semibold text-slate-900">{segment.slice(2, -2)}</strong>;
+    }
+    if (segment.startsWith("`") && segment.endsWith("`")) {
+      return <code key={index} className="rounded bg-slate-200 px-1.5 py-0.5 font-mono text-[0.88em] text-slate-800">{segment.slice(1, -1)}</code>;
+    }
+    return segment;
+  });
 }
