@@ -547,10 +547,11 @@ export default function Home() {
 
               <div className="flex flex-wrap items-end gap-3">
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-medium uppercase tracking-wide text-slate-800">
+                  <label htmlFor="recent-route-filter" className="text-xs font-medium uppercase tracking-wide text-slate-800">
                     Route
                   </label>
                   <select
+                    id="recent-route-filter"
                     value={selectedRoute}
                     onChange={(e) => setSelectedRoute(e.target.value)}
                     className="h-10 min-w-32 rounded-lg border border-slate-300 bg-white px-3 text-sm"
@@ -563,10 +564,11 @@ export default function Home() {
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-medium uppercase tracking-wide text-slate-800">
+                  <label htmlFor="recent-model-filter" className="text-xs font-medium uppercase tracking-wide text-slate-800">
                     Model
                   </label>
                   <select
+                    id="recent-model-filter"
                     value={selectedModel}
                     onChange={(e) => setSelectedModel(e.target.value)}
                     className="h-10 min-w-40 rounded-lg border border-slate-300 bg-white px-3 text-sm"
@@ -578,10 +580,11 @@ export default function Home() {
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-medium uppercase tracking-wide text-slate-800">
+                  <label htmlFor="recent-limit" className="text-xs font-medium uppercase tracking-wide text-slate-800">
                     Show
                   </label>
                   <select
+                    id="recent-limit"
                     value={recentLimit}
                     onChange={(e) => setRecentLimit(Number(e.target.value))}
                     className="h-10 min-w-24 rounded-lg border border-slate-300 bg-white px-3 text-sm"
@@ -593,10 +596,11 @@ export default function Home() {
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-medium uppercase tracking-wide text-slate-800">
+                  <label htmlFor="recent-search" className="text-xs font-medium uppercase tracking-wide text-slate-800">
                     Search
                   </label>
                   <input
+                    id="recent-search"
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}

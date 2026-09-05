@@ -262,7 +262,7 @@ export default function LandingPage() {
               Platform
             </p>
             <h2 className="mt-4 text-4xl font-semibold tracking-tight text-slate-950">
-              Everything a serious AI product homepage should point toward is already in the product.
+              A complete operating layer for teams building with multiple AI models.
             </h2>
           </div>
           <div className="mt-10 grid gap-6 lg:grid-cols-3">
@@ -323,11 +323,11 @@ export default function LandingPage() {
                 Pricing
               </p>
               <h2 className="mt-4 text-4xl font-semibold tracking-tight text-slate-950">
-                Designed to look and feel like a product company, not a side project.
+              A practical path from first routing experiment to production operations.
               </h2>
             </div>
             <p className="max-w-xl text-base leading-7 text-slate-600">
-              These plans are presented as product packaging for the site experience and give the homepage the completeness users expect from a startup-grade platform.
+              Start by validating your routing policy, then add the visibility and controls your product needs as usage grows.
             </p>
           </div>
           <div className="mt-10 grid gap-6 lg:grid-cols-3">
@@ -404,10 +404,10 @@ export default function LandingPage() {
               Ready to ship
             </p>
             <h2 className="mt-4 max-w-3xl text-4xl font-semibold tracking-tight">
-              Turn RouteAlpha into the kind of AI product site investors, customers, and teammates expect to see.
+              Give every model decision a clear policy, a measurable outcome, and a path to improve.
             </h2>
             <p className="mt-4 max-w-2xl text-base leading-7 text-slate-200">
-              The marketing surface is now connected to real product flows, so visitors can move straight from the story into the dashboard or inference playground.
+              RouteAlpha connects routing decisions with the signals teams need to manage cost, speed, and quality with confidence.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link

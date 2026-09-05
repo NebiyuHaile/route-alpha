@@ -52,3 +52,15 @@ def send_contact_notification(
         server.send_message(message)
 
     return True, "Notification email sent."
+
+
+def send_contact_notification_safely(
+    request_id: str, request: ContactRequestCreate
+) -> None:
+    """Send a notification after the request has been accepted without failing it."""
+    try:
+        send_contact_notification(request_id=request_id, request=request)
+    except Exception:
+        # The lead is already persisted. Notification delivery must not turn a
+        # successful contact request into a failed user-facing interaction.
+        return

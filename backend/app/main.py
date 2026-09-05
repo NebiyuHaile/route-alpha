@@ -6,7 +6,7 @@ import time
 from contextlib import asynccontextmanager
 
 import pyotp
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from limits import parse
@@ -29,7 +29,7 @@ from app.router import choose_model
 from app.llm_service import call_model
 from app.database import Base, engine, SessionLocal
 from app.models import ContactRequest, InferenceLog, ModelTaskPerformance, User
-from app.email_utils import send_contact_notification
+from app.email_utils import send_contact_notification_safely
 from app.analytics import (get_summary_stats, get_route_breakdown, get_model_breakdown, get_cost_breakdown, get_latency_breakdown, get_recent_requests)
 from app.config import EMBEDDING_MAX_LENGTH, EMBEDDING_MODEL_DIR, MODEL_ACCURACY_RATINGS, MODEL_CATALOG
 from app.services.embedding_router import EmbeddingRouter
@@ -473,7 +473,9 @@ async def infer(request: InferenceRequest, current_user: User = Depends(get_curr
 
 
 @app.post("/contact")
-def create_contact_request(request: ContactRequestCreate):
+def create_contact_request(
+    request: ContactRequestCreate, background_tasks: BackgroundTasks
+):
     db = SessionLocal()
     try:
         request_id = str(uuid4())
@@ -491,15 +493,15 @@ def create_contact_request(request: ContactRequestCreate):
         db.add(contact_request)
         db.commit()
 
-        email_sent, email_status = send_contact_notification(
-            request_id=request_id, request=request
+        background_tasks.add_task(
+            send_contact_notification_safely, request_id=request_id, request=request
         )
 
         return {
             "request_id": request_id,
             "message": "Contact request submitted successfully.",
-            "email_sent": email_sent,
-            "email_status": email_status,
+            "email_sent": False,
+            "email_status": "Notification delivery is processing in the background.",
         }
     except Exception as e:
         db.rollback()

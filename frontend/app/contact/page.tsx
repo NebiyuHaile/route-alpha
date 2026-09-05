@@ -58,11 +58,9 @@ export default function ContactPage() {
       }
 
       const data = await response.json();
-      const statusMessage = data.email_sent
-        ? data.message || "Contact request submitted successfully."
-        : `${data.message || "Contact request submitted successfully."} ${data.email_status || ""}`.trim();
-
-      setSuccessMessage(statusMessage);
+      setSuccessMessage(
+        data.message || "Contact request submitted successfully."
+      );
       setForm({
         full_name: "",
         email: "",
@@ -106,11 +104,11 @@ export default function ContactPage() {
               />
               <ContactHighlight
                 title="Useful for product discovery"
-                detail="This gives the site a real conversion path and gives the platform a backlog grounded in actual customer needs."
+                detail="Capture the constraints, outcomes, and operating context that should shape the routing policy."
               />
               <ContactHighlight
                 title="Connected to the backend"
-                detail="Requests are submitted to the API instead of being a static fake form."
+                detail="Your request is captured immediately; team notification delivery continues in the background."
               />
             </div>
 

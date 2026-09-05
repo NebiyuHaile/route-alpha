@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import Navbar from "../../components/Navbar";
@@ -19,7 +19,7 @@ function getPasswordRuleError(password: string) {
     : "";
 }
 
-export default function AuthPage() {
+function AuthPageContent() {
   const [mode, setMode] = useState<Mode>("login");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -250,6 +250,23 @@ export default function AuthPage() {
         </div>
       </main>
     </>
+  );
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen px-6 py-16">
+          <div className="mx-auto max-w-4xl rounded-[2rem] border border-slate-200 bg-white/85 p-8 shadow-sm">
+            <div className="h-6 w-40 animate-pulse rounded bg-slate-200" />
+            <div className="mt-4 h-10 w-72 animate-pulse rounded bg-slate-100" />
+          </div>
+        </main>
+      }
+    >
+      <AuthPageContent />
+    </Suspense>
   );
 }
 
