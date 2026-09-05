@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { AuthProvider } from "../components/AuthProvider";
 import "./globals.css";
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+
 export const metadata: Metadata = {
   title: {
     default: "RouteAlpha",
@@ -9,6 +11,7 @@ export const metadata: Metadata = {
   },
   description:
     "RouteAlpha is a routing dashboard and inference workspace for comparing model cost, latency, and usage patterns.",
+  metadataBase: new URL(siteUrl),
   applicationName: "RouteAlpha",
   keywords: [
     "RouteAlpha",
@@ -18,6 +21,15 @@ export const metadata: Metadata = {
     "Next.js",
     "FastAPI",
   ],
+  openGraph: {
+    title: "RouteAlpha — Observable AI routing",
+    description:
+      "Route LLM requests with explicit cost, latency, and quality tradeoffs.",
+    type: "website",
+    url: siteUrl,
+    siteName: "RouteAlpha",
+  },
+  robots: { index: true, follow: true },
 };
 
 export default function RootLayout({
