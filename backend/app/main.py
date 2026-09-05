@@ -30,8 +30,8 @@ from app.llm_service import call_model
 from app.database import Base, engine, SessionLocal
 from app.models import ContactRequest, InferenceLog, ModelTaskPerformance, User
 from app.email_utils import send_contact_notification_safely
-from app.analytics import (get_summary_stats, get_route_breakdown, get_model_breakdown, get_cost_breakdown, get_latency_breakdown, get_recent_requests)
-from app.config import EMBEDDING_MAX_LENGTH, EMBEDDING_MODEL_DIR, MODEL_ACCURACY_RATINGS, MODEL_CATALOG
+from app.analytics import (get_summary_stats, get_route_breakdown, get_model_breakdown, get_cost_breakdown, get_latency_breakdown, get_recent_requests, get_fallback_breakdowns)
+from app.config import CORS_ORIGINS, EMBEDDING_MAX_LENGTH, EMBEDDING_MODEL_DIR, MODEL_ACCURACY_RATINGS, MODEL_CATALOG
 from app.services.embedding_router import EmbeddingRouter
 from app.services.pareto_router import ParetoRouter, RoutingPolicy, TelemetryTracker
 
@@ -102,7 +102,7 @@ app.state.limiter = limiter
 auth_scheme = HTTPBearer(auto_error=False)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -351,6 +351,11 @@ def analytics_latency(current_user: User = Depends(get_current_user)):
 @app.get("/analytics/recent")
 def analytics_recent(limit: int = 10, current_user: User = Depends(get_current_user)):
     return get_recent_requests(limit=limit)
+
+
+@app.get("/analytics/fallbacks")
+def analytics_fallbacks(current_user: User = Depends(get_current_user)):
+    return get_fallback_breakdowns()
 
 
 def _load_accuracy_ratings(task_type: str) -> dict[str, float]:

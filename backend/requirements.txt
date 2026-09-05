@@ -43,6 +43,7 @@ propcache==0.4.1
 psycopg2-binary==2.9.11
 pydantic==2.12.5
 pydantic_core==2.41.5
+pytest==9.0.2
 pyotp==2.9.0
 numpy==2.2.3
 Pygments==2.19.2

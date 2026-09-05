@@ -142,3 +142,47 @@ def get_recent_requests(limit: int = 10):
         ]
     finally:
         db.close()
+
+
+def get_fallback_breakdowns():
+    """Return the primary routes, models, and dates associated with reroutes."""
+    db = SessionLocal()
+    try:
+        by_route = (
+            db.query(
+                InferenceLog.route_key,
+                func.count(InferenceLog.request_id).label("count"),
+            )
+            .filter(InferenceLog.fallback_used.is_(True))
+            .group_by(InferenceLog.route_key)
+            .order_by(func.count(InferenceLog.request_id).desc())
+            .all()
+        )
+        by_model = (
+            db.query(
+                InferenceLog.model_used,
+                func.count(InferenceLog.request_id).label("count"),
+            )
+            .filter(InferenceLog.fallback_used.is_(True))
+            .group_by(InferenceLog.model_used)
+            .order_by(func.count(InferenceLog.request_id).desc())
+            .all()
+        )
+        trend = (
+            db.query(
+                func.date(InferenceLog.created_at).label("date"),
+                func.count(InferenceLog.request_id).label("count"),
+            )
+            .filter(InferenceLog.fallback_used.is_(True))
+            .group_by(func.date(InferenceLog.created_at))
+            .order_by(func.date(InferenceLog.created_at))
+            .all()
+        )
+
+        return {
+            "by_route": [{"route_key": row.route_key, "count": row.count} for row in by_route],
+            "by_model": [{"model_used": row.model_used, "count": row.count} for row in by_model],
+            "trend": [{"date": str(row.date), "count": row.count} for row in trend],
+        }
+    finally:
+        db.close()

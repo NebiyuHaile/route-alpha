@@ -3,19 +3,41 @@ import os
 
 load_dotenv()
 
+
+def _get_int_env(name: str, default: int) -> int:
+    raw_value = os.getenv(name)
+    if raw_value is None:
+        return default
+
+    try:
+        return int(raw_value)
+    except ValueError as exc:
+        raise RuntimeError(f"{name} must be an integer.") from exc
+
+
+def _get_list_env(name: str, default: list[str]) -> list[str]:
+    raw_value = os.getenv(name)
+    if not raw_value:
+        return default
+    return [item.strip() for item in raw_value.split(",") if item.strip()]
+
+
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL")
-CONTACT_NOTIFICATION_EMAIL = os.getenv(
-    "CONTACT_NOTIFICATION_EMAIL",
-    "nebiyuhaile385@gmail.com",
-)
+CORS_ORIGINS = _get_list_env("CORS_ORIGINS", ["http://localhost:3000"])
+CONTACT_NOTIFICATION_EMAIL = os.getenv("CONTACT_NOTIFICATION_EMAIL")
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_PORT = _get_int_env("SMTP_PORT", 587)
 SMTP_USERNAME = os.getenv("SMTP_USERNAME")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 SMTP_SENDER_EMAIL = os.getenv("SMTP_SENDER_EMAIL", SMTP_USERNAME or "")
-AUTH_SECRET_KEY = os.getenv("AUTH_SECRET_KEY", "routealpha-dev-secret-change-me")
-AUTH_TOKEN_EXPIRE_HOURS = int(os.getenv("AUTH_TOKEN_EXPIRE_HOURS", "24"))
+AUTH_SECRET_KEY = os.getenv("AUTH_SECRET_KEY")
+if not AUTH_SECRET_KEY:
+    raise RuntimeError(
+        "AUTH_SECRET_KEY is required. Set it to a long random secret before "
+        "starting the RouteAlpha API."
+    )
+AUTH_TOKEN_EXPIRE_HOURS = _get_int_env("AUTH_TOKEN_EXPIRE_HOURS", 24)
 EMBEDDING_MODEL_DIR = os.getenv("EMBEDDING_MODEL_DIR", "./models/all-MiniLM-L6-v2-onnx")
 EMBEDDING_MAX_LENGTH = int(os.getenv("EMBEDDING_MAX_LENGTH", "128"))
 TELEMETRY_WINDOW_SIZE = int(os.getenv("TELEMETRY_WINDOW_SIZE", "200"))
