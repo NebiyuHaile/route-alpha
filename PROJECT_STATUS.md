@@ -20,12 +20,13 @@ RouteAlpha currently has five user-facing product surfaces:
 - local ONNX semantic classification for `code_generation`, `creative_writing`, `classification`, and `summarization`
 - dynamic Pareto-style model selection balancing normalized cost, latency, and accuracy
 - validated per-request routing policies with cost, latency, and accuracy weights that sum to 1.0
-- bounded in-memory moving telemetry windows for route cost and latency
+- bounded telemetry windows for route cost and latency, with Redis-backed shared telemetry required in production
 - task-specific model accuracy ratings, including evaluator-adjusted persisted ratings
 - fallback routing across ordered route tiers when primary calls fail
 - task type and priority-aware route selection
 - route reasoning, semantic match, and candidate routing scores returned with each inference response
 - LiteLLM and OpenRouter integration for real model calls
+- environment-configurable, distinct model tiers with startup validation and provider-catalog verification procedure
 - latency, token, and estimated cost tracking
 - PostgreSQL-backed inference logging
 - fallback metadata logging (`resolved_route_key`, `fallback_used`, attempted routes/models)
@@ -36,6 +37,9 @@ RouteAlpha currently has five user-facing product surfaces:
 - email notification delivery for contact requests
 - user account registration and login
 - bearer token authentication for protected API routes
+- strict production configuration validation for PostgreSQL, Redis, HTTPS, trusted hosts, and explicit CORS origins
+- encrypted TOTP secrets at rest using a dedicated Fernet key in production
+- liveness and readiness health endpoints for deployment probes
 - analytics queries for summary, route, model, cost, latency, and recent request views
 - summary analytics include fallback count and fallback rate percentage
 
@@ -118,13 +122,14 @@ RouteAlpha currently has five user-facing product surfaces:
   - dashboard
   - inference playground
   - contact page
-- backend Phase 1 modules compile and smoke checks cover Pareto policy validation, route selection, FastAPI import, and semantic-router fallback behavior
+- backend Phase 1 modules compile and smoke checks cover Pareto policy validation, route selection, FastAPI import, semantic-router fallback behavior, encrypted TOTP login, health probes, and failed-login limiting
 
 ## Runtime Notes
 
 - local ONNX semantic classification requires `model.onnx` and `tokenizer.json` in the configured `EMBEDDING_MODEL_DIR`; the API safely falls back to static routing when they are absent or invalid
 - continuous evaluator feedback requires a configured Celery broker and `OPENROUTER_API_KEY` for open-ended LLM-as-a-judge evaluations
 - PostgreSQL is the intended production datastore; the local run guide also documents SQLite for a quick local demo
+- `docs/production_readiness.md` documents production environment requirements, deployment topology, health checks, model validation, backups, and release gates
 
 ## Next Likely Steps
 
@@ -132,6 +137,6 @@ RouteAlpha currently has five user-facing product surfaces:
 - add screenshots or richer real data previews to the landing page
 - add tests around routing, analytics, and page-level UI flows
 - provision and verify the Celery broker for continuous evaluator feedback
-- replace process-local telemetry with a shared store before horizontally scaling the API
+- validate Redis-backed telemetry and rate limiting across multiple deployed API instances
 - differentiate the current `medium` and `strong` route model mappings with production benchmarking
 - implement and validate the planned Phase 2 high-performance data/control-plane split before enabling it

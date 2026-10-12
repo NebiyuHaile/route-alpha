@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "./AuthProvider";
 import Navbar from "./Navbar";
 import RequireAuth from "./RequireAuth";
@@ -244,7 +244,7 @@ export default function Home() {
   const [sortDirection, setSortDirection] = useState<SortDirection>(
     DEFAULT_SORT.direction
   );
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const hasLoadedOnceRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [recentLoading, setRecentLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -252,7 +252,7 @@ export default function Home() {
 
   const loadDashboard = useCallback(async (isRefresh = false) => {
     try {
-      if (isRefresh || hasLoadedOnce) {
+      if (isRefresh || hasLoadedOnceRef.current) {
         setRefreshing(true);
       } else {
         setLoading(true);
@@ -313,17 +313,21 @@ export default function Home() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
-      setHasLoadedOnce(true);
+      hasLoadedOnceRef.current = true;
       setLoading(false);
       setRecentLoading(false);
       setRefreshing(false);
     }
-  }, [authFetch, hasLoadedOnce, recentLimit]);
+  }, [authFetch, recentLimit]);
 
   useEffect(() => {
-    if (isReady && isAuthenticated) {
-      loadDashboard();
-    }
+    if (!isReady || !isAuthenticated) return;
+
+    const loadTimer = window.setTimeout(() => {
+      void loadDashboard();
+    }, 0);
+
+    return () => window.clearTimeout(loadTimer);
   }, [isAuthenticated, isReady, loadDashboard]);
 
   const formattedModels = models.map((item) => ({

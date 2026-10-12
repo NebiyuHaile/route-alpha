@@ -6,7 +6,7 @@ RouteAlpha sits between an application and its language-model providers. It clas
 
 The repository includes a complete product surface: a Next.js application for authentication, live inference, routing observability, and contact capture; plus a FastAPI backend that performs routing, provider execution, logging, and analytics.
 
-> RouteAlpha is an engineering project and active platform prototype. The current model catalog and telemetry implementation are suitable for local development and demonstration; the production hardening roadmap is documented below.
+> RouteAlpha is an engineering project and active platform prototype. It includes a production-readiness baseline—strict production configuration, PostgreSQL/Redis requirements, encrypted TOTP secrets, readiness checks, and patched frontend dependencies—but still requires a deployed infrastructure validation before public launch.
 
 ## Why RouteAlpha
 
@@ -88,7 +88,7 @@ If local semantic assets or dynamic scoring fail, the API uses deterministic sta
 | Semantic routing | ONNX Runtime, tokenizers, local MiniLM assets |
 | Data | SQLite for a quick local run; PostgreSQL for production |
 | Background evaluation | Celery, Redis-compatible broker, JSON Schema, optional LLM judge |
-| Security | PBKDF2 password hashing, signed JWTs, bearer auth, failed-login limiting, opt-in TOTP, server-side admin dependency |
+| Security | Argon2id password hashing, signed JWTs, bearer auth, rate limiting, encrypted opt-in TOTP, server-side admin dependency |
 
 ## Quick start
 
@@ -130,7 +130,8 @@ Never commit real environment files or credentials. The API starts without ONNX 
 
 | Endpoint | Auth | Description |
 | --- | --- | --- |
-| `GET /health` | No | API health check. |
+| `GET /health` | No | API liveness check. |
+| `GET /health/ready` | No | Readiness check for database connectivity and provider configuration. |
 | `POST /auth/register` | No | Create an account and receive a bearer token. |
 | `POST /auth/login` | No | Sign in; supports an `otp_code` for enrolled accounts. |
 | `GET /auth/me` | Yes | Restore/validate the current session. |
@@ -147,14 +148,20 @@ See the full request and response contract in [docs/inference_api_reference.md](
 RouteAlpha currently includes:
 
 - server-validated password rules (8–128 characters, at least one letter and number);
-- PBKDF2-HMAC-SHA256 password hashing with a random salt;
+- Argon2id password hashing with transparent verified migration from legacy PBKDF2 hashes;
 - signed, expiring bearer tokens and active-user checks on protected routes;
 - failed-login limiting by IP and normalized email address;
 - optional time-based one-time password (TOTP) enrollment;
+- protected Prometheus-compatible HTTP, provider-call, and fallback metrics;
+- production browser security headers and bounded provider request concurrency;
 - a reusable `require_admin` server-side dependency for future privileged endpoints; and
 - background contact notifications so SMTP delivery cannot block form submission.
 
-The local limiter uses in-memory storage. A horizontally scaled production deployment should use a shared Redis-backed limiter, tenant-scoped authorization, managed secret rotation, TLS, audit logs, and rate/budget controls for model traffic.
+Local development uses in-memory rate-limit and telemetry storage. Production configuration requires shared Redis-backed storage, PostgreSQL, explicit origins/hosts, HTTPS enforcement, and a separate Fernet key for encrypted TOTP storage. Tenant-scoped authorization, audit logs, prompt-retention controls, and rate/budget controls for model traffic remain future product work.
+
+Production schema changes are handled through Alembic rather than API startup. See the [production-readiness baseline](docs/production_readiness.md) for migration, monitoring, backup, and release-gate requirements.
+
+For a no-cost public portfolio or private-beta deployment, use the selected [free hosting stack](docs/free_private_beta_deployment.md). It preserves the PostgreSQL/Redis architecture but has explicit cold-start, single-instance, and non-commercial limitations; it is not the final multi-replica production topology.
 
 ## Development quality checks
 
@@ -184,7 +191,7 @@ route-alpha/
 
 ## Roadmap
 
-- Move process-local telemetry and rate-limit state to Redis before horizontal scaling.
+- Validate shared Redis telemetry and rate limiting across multiple deployed API instances.
 - Benchmark and differentiate the `medium` and `strong` model mappings.
 - Add tenant/organization boundaries, roles, quotas, and budget enforcement.
 - Add idempotency keys, provider circuit breakers, request deadlines, and streaming responses.
@@ -194,6 +201,8 @@ route-alpha/
 ## Documentation
 
 - [Run RouteAlpha locally](docs/run_routealpha_locally.md)
+- [Production-readiness baseline](docs/production_readiness.md)
+- [Production deployment runbook](docs/production_runbook.md)
 - [Inference API reference](docs/inference_api_reference.md)
 - [Dynamic routing](docs/dynamic_routing.md)
 - [System design / HLD guide](docs/routealpha_system_design_hld.md)

@@ -2,10 +2,21 @@ import base64
 import hashlib
 import hmac
 import json
-import secrets
 from datetime import UTC, datetime, timedelta
 
+from argon2 import PasswordHasher
+from argon2.exceptions import InvalidHashError, VerificationError
+
 from app.config import AUTH_SECRET_KEY, AUTH_TOKEN_EXPIRE_HOURS
+
+_PASSWORD_HASHER = PasswordHasher(
+    time_cost=3,
+    memory_cost=65536,
+    parallelism=2,
+    hash_len=32,
+    salt_len=16,
+)
+_LEGACY_PBKDF2_ITERATIONS = 120000
 
 
 def _b64url_encode(data: bytes) -> str:
@@ -18,17 +29,12 @@ def _b64url_decode(data: str) -> bytes:
 
 
 def hash_password(password: str) -> str:
-    salt = secrets.token_hex(16)
-    derived_key = hashlib.pbkdf2_hmac(
-        "sha256",
-        password.encode("utf-8"),
-        salt.encode("utf-8"),
-        120000,
-    )
-    return f"{salt}${derived_key.hex()}"
+    """Hash a new password with Argon2id."""
+    return _PASSWORD_HASHER.hash(password)
 
 
-def verify_password(password: str, stored_hash: str) -> bool:
+def _verify_legacy_pbkdf2_password(password: str, stored_hash: str) -> bool:
+    """Verify the former hash format so existing accounts can migrate safely."""
     try:
         salt, expected_hash = stored_hash.split("$", maxsplit=1)
     except ValueError:
@@ -38,9 +44,28 @@ def verify_password(password: str, stored_hash: str) -> bool:
         "sha256",
         password.encode("utf-8"),
         salt.encode("utf-8"),
-        120000,
+        _LEGACY_PBKDF2_ITERATIONS,
     ).hex()
     return hmac.compare_digest(candidate_hash, expected_hash)
+
+
+def verify_password(password: str, stored_hash: str) -> bool:
+    if stored_hash.startswith("$argon2"):
+        try:
+            return _PASSWORD_HASHER.verify(stored_hash, password)
+        except (InvalidHashError, VerificationError):
+            return False
+    return _verify_legacy_pbkdf2_password(password, stored_hash)
+
+
+def password_needs_rehash(stored_hash: str) -> bool:
+    """Return true for all legacy hashes and outdated Argon2id parameters."""
+    if not stored_hash.startswith("$argon2"):
+        return True
+    try:
+        return _PASSWORD_HASHER.check_needs_rehash(stored_hash)
+    except InvalidHashError:
+        return True
 
 
 def create_access_token(user_id: str, email: str) -> str:
