@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from collections import defaultdict, deque
 from dataclasses import dataclass
 from typing import Mapping
+
+import redis.asyncio as redis
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -88,6 +91,57 @@ class TelemetryTracker:
             return result
 
 
+class RedisTelemetryTracker:
+    """Redis-backed telemetry for routing decisions shared by all API instances."""
+
+    def __init__(self, redis_url: str, window_size: int = TELEMETRY_WINDOW_SIZE) -> None:
+        self._redis = redis.from_url(redis_url, decode_responses=True)
+        self._window_size = window_size
+
+    @staticmethod
+    def _key(route_key: str) -> str:
+        return f"routealpha:telemetry:{route_key}"
+
+    async def record(self, route_key: str, cost_per_1k: float, latency_seconds: float) -> None:
+        if cost_per_1k < 0 or latency_seconds < 0:
+            raise ValueError("telemetry values must be non-negative")
+        pipeline = self._redis.pipeline(transaction=True)
+        pipeline.lpush(
+            self._key(route_key),
+            json.dumps({"cost_per_1k": cost_per_1k, "latency_seconds": latency_seconds}),
+        )
+        pipeline.ltrim(self._key(route_key), 0, self._window_size - 1)
+        pipeline.expire(self._key(route_key), 60 * 60 * 24 * 7)
+        await pipeline.execute()
+
+    async def snapshot(
+        self,
+        route_keys: tuple[str, ...],
+        defaults: Mapping[str, ModelTelemetry],
+    ) -> dict[str, ModelTelemetry]:
+        result: dict[str, ModelTelemetry] = {}
+        samples_by_route = await asyncio.gather(
+            *(self._redis.lrange(self._key(route_key), 0, -1) for route_key in route_keys)
+        )
+        for route_key, raw_samples in zip(route_keys, samples_by_route, strict=True):
+            if not raw_samples:
+                result[route_key] = defaults[route_key]
+                continue
+            samples = [json.loads(sample) for sample in raw_samples]
+            count = len(samples)
+            result[route_key] = ModelTelemetry(
+                cost_per_1k=sum(sample["cost_per_1k"] for sample in samples) / count,
+                latency_seconds=sum(sample["latency_seconds"] for sample in samples) / count,
+            )
+        return result
+
+    async def close(self) -> None:
+        await self._redis.aclose()
+
+    async def ping(self) -> bool:
+        return bool(await self._redis.ping())
+
+
 DEFAULT_TELEMETRY: dict[str, ModelTelemetry] = {
     "cheap": ModelTelemetry(0.00025, 0.8),
     "medium": ModelTelemetry(0.00040, 1.2),
@@ -98,7 +152,7 @@ DEFAULT_TELEMETRY: dict[str, ModelTelemetry] = {
 class ParetoRouter:
     """Select the minimum weighted score across available downstream routes."""
 
-    def __init__(self, telemetry: TelemetryTracker) -> None:
+    def __init__(self, telemetry: TelemetryTracker | RedisTelemetryTracker) -> None:
         """Construct a router backed by the supplied telemetry tracker."""
         self._telemetry = telemetry
 

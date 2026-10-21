@@ -127,7 +127,7 @@ At 100 RPS and a 5-second average upstream response time, roughly **500 concurre
 | Next.js frontend | Product UI; stores a client session; sends authorized API calls; renders inference and analytics metadata. | `frontend/` routes and components. |
 | FastAPI gateway | API boundary, CORS, auth dependency, request validation, orchestration, persistence, and endpoint responses. | `backend/app/main.py`. |
 | Semantic router | Locally classifies a prompt by cosine similarity against category exemplars. | ONNX Runtime CPU via `EmbeddingRouter`. |
-| Pareto router | Scores every tier using normalized cost, latency, and accuracy values. | `ParetoRouter` + in-memory sliding telemetry. |
+| Pareto router | Scores every tier using normalized cost, latency, and accuracy values. | `ParetoRouter` + bounded local telemetry in development or Redis-backed shared telemetry in production. |
 | Static router | Provides deterministic routing when dynamic routing fails. | `backend/app/router.py`. |
 | Provider adapter | Maps tiers to model identifiers, invokes LiteLLM/OpenRouter, estimates tokens/cost, and applies fallback. | `backend/app/llm_service.py`. |
 | Transactional datastore | Stores users, contact leads, inference logs, and evaluator-adjusted quality ratings. | SQLAlchemy; SQLite locally/PostgreSQL intended in production. |
@@ -309,7 +309,7 @@ The design purpose is closed-loop routing: observed quality affects future routi
 
 ### Important limitations to say out loud
 
-- Current telemetry is an in-memory, bounded sliding window per API process. It resets on restart and differs across replicas.
+- Local development telemetry is an in-memory, bounded sliding window per API process. Production configuration requires Redis-backed shared telemetry; its sliding window is operational state and still needs capacity/retention monitoring.
 - Quality evaluation is batch-based and only lowers ratings after a threshold; it does not yet learn a full calibrated accuracy model.
 - The evaluator is optional and needs a broker plus provider credentials for open-ended judging.
 - A judge model introduces its own cost and potential bias; structured validation is more deterministic where possible.
@@ -376,7 +376,7 @@ That makes retries observable and reduces duplicate model charges.
 5. The API validates signature and expiry and rechecks that the user still exists and is active.
 6. The frontend restores the session by calling `/auth/me`; it clears local session state on 401.
 
-Passwords use PBKDF2-HMAC-SHA256 with a random salt and 120,000 iterations, and comparison uses constant-time comparison.
+New passwords use Argon2id. A verified legacy PBKDF2-HMAC-SHA256 password is transparently rehashed with Argon2id after a successful login, so existing accounts can migrate without a forced reset.
 
 ### Current security boundary and production gaps
 
@@ -387,7 +387,7 @@ The current frontend keeps the bearer token in `localStorage`, which is convenie
 - use asymmetric JWTs if multiple independent services must verify tokens;
 - add organization/tenant ID and roles/entitlements to the authorization model;
 - scope every inference and analytics query by tenant and enforce quotas/budgets;
-- add login/register rate limiting, email verification, password-reset flow, and abuse controls;
+- add email verification, a password-reset flow, tenant-level quota/budget controls, and richer security audit events;
 - narrow CORS origins per deployment and require TLS everywhere.
 
 **Important interview observation:** analytics queries in the current MVP are authenticated but are not filtered by user or tenant. Multi-tenant production must add `tenant_id` to all relevant records and enforce it in every query.
@@ -593,15 +593,15 @@ The existing dashboard shows total requests, cost, latency, model/route distribu
 
 | Area | Current RouteAlpha | Next production step |
 | --- | --- | --- |
-| Routing signal | Local semantic match + Pareto score + static fallback. | Shared telemetry, calibration, confidence thresholds, experimentation. |
-| Model catalog | Configured in application code; medium/strong currently use the same model. | Versioned registry; distinct benchmarked models; per-tenant allowlists. |
-| Telemetry | In-memory per process, bounded to 200 samples by default. | Redis/time-series backed, multi-replica, decayed/weighted windows. |
+| Routing signal | Local semantic match + Pareto score + static fallback. | Calibration, confidence thresholds, experimentation. |
+| Model catalog | Environment-configured distinct tiers with per-1K price inputs. | Versioned registry; benchmarked models; per-tenant allowlists. |
+| Telemetry | Bounded local telemetry in development; Redis required in production. | Time-series backed, multi-replica, decayed/weighted windows. |
 | Fallback | Sequential ordered attempts, duplicate model skip. | Error classification, deadline budget, circuit breakers, provider hedging when justified. |
 | Persistence | Direct SQLAlchemy logging after inference. | Async/event-driven log pipeline, idempotency, partitioning and retention. |
 | Analytics | SQL aggregates over all logs. | Tenant-scoped OLAP aggregates and live alerting. |
 | Evaluation | Optional periodic Celery task. | Event-driven queue, calibrated rubrics, human/ground-truth sampling. |
-| Authentication | HS256 JWT, PBKDF2 passwords, browser localStorage session. | Tenant RBAC, secure cookie/BFF, key rotation, abuse protection. |
-| Availability | Single local API process practical for demo. | Load-balanced replicas, HA data plane, SLOs/runbooks. |
+| Authentication | HS256 JWT, Argon2id passwords, bearer session in browser localStorage, rate limits, optional encrypted TOTP. | Tenant RBAC, secure cookie/BFF, key rotation, email verification, audit events. |
+| Availability | Production checks, health/readiness, metrics, Docker/CI artifacts, and a provider-neutral runbook are present. | Deployed load-balanced replicas, HA data plane, SLO validation, and backup-restore evidence. |
 
 ---
 

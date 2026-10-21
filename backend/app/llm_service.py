@@ -1,11 +1,31 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 from time import perf_counter
 from litellm import completion
-from app.config import FALLBACK_ROUTE_ORDER, OPENROUTER_API_KEY, MODEL_CATALOG
+from prometheus_client import Counter
+from app.config import (
+    FALLBACK_ROUTE_ORDER,
+    MODEL_CATALOG,
+    MODEL_REQUEST_TIMEOUT_SECONDS,
+    OPENROUTER_API_KEY,
+)
 from app.token_utils import estimate_tokens
 from app.pricing import MODEL_PRICING
+
+logger = logging.getLogger(__name__)
+
+PROVIDER_CALL_COUNT = Counter(
+    "routealpha_provider_calls_total",
+    "RouteAlpha model-provider call outcomes.",
+    ("route_key", "model", "outcome"),
+)
+FALLBACK_COUNT = Counter(
+    "routealpha_fallbacks_total",
+    "RouteAlpha requests that resolved on a fallback route.",
+    ("primary_route", "resolved_route"),
+)
 
 
 def _build_fallback_candidates(route_key: str) -> list[tuple[str, str]]:
@@ -33,7 +53,8 @@ def _execute_model_call(model_name: str, prompt: str) -> dict[str, Any]:
         model=model_name,
         messages=[{"role": "user", "content": prompt}],
         api_key=OPENROUTER_API_KEY,
-        max_tokens=300
+        max_tokens=300,
+        timeout=MODEL_REQUEST_TIMEOUT_SECONDS,
     )
 
     latency_ms = round((perf_counter() - start) * 1000, 2)
@@ -66,9 +87,12 @@ def call_model(route_key: str, prompt: str) -> dict[str, Any]:
     for candidate_route, model_name in _build_fallback_candidates(route_key):
         try:
             result = _execute_model_call(model_name=model_name, prompt=prompt)
+            PROVIDER_CALL_COUNT.labels(candidate_route, model_name, "success").inc()
             result["resolved_route_key"] = candidate_route
             result["fallback_used"] = candidate_route != route_key
             result["fallback_reason"] = fallback_reason
+            if result["fallback_used"]:
+                FALLBACK_COUNT.labels(route_key, candidate_route).inc()
             result["attempted_routes"] = [attempt["route_key"] for attempt in attempts] + [
                 candidate_route
             ]
@@ -77,15 +101,22 @@ def call_model(route_key: str, prompt: str) -> dict[str, Any]:
             ]
             return result
         except Exception as exc:
+            PROVIDER_CALL_COUNT.labels(candidate_route, model_name, "failure").inc()
+            logger.warning(
+                "provider_call_failed route=%s model=%s error_type=%s",
+                candidate_route,
+                model_name,
+                type(exc).__name__,
+            )
             attempts.append(
                 {
                     "route_key": candidate_route,
                     "model_used": model_name,
-                    "error": str(exc),
+                    "error": type(exc).__name__,
                 }
             )
             if fallback_reason is None:
-                fallback_reason = str(exc)
+                fallback_reason = f"Primary model call failed on route '{candidate_route}'."
 
     attempt_summary = " | ".join(
         f"{attempt['route_key']} -> {attempt['model_used']}: {attempt['error']}"

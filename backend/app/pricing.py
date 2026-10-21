@@ -1,12 +1,3 @@
-# a simple place holder 
+"""Configured model-pricing data used for request-cost estimates."""
 
-MODEL_PRICING = {
-    "openrouter/google/gemini-2.0-flash-lite-001":{
-        "input_per_1k": 0.00010,
-        "output_per_1k": 0.00040,
-    },
-    "openrouter/openai/gpt-4o-mini":{
-        "input_per_1k": 0.00010,
-        "output_per_1k": 0.00040,
-    },
-}
+from app.config import MODEL_PRICING
