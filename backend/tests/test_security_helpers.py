@@ -52,6 +52,7 @@ def test_provider_call_uses_configured_timeout(monkeypatch):
         return {"choices": [{"message": {"content": "ok"}}]}
 
     monkeypatch.setattr("app.llm_service.completion", complete)
+    monkeypatch.setattr("app.llm_service.OPENROUTER_API_KEY", "test-provider-key")
 
     _execute_model_call("openrouter/openai/gpt-4o-mini", "hello")
 
