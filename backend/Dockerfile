@@ -20,5 +20,6 @@ USER routealpha
 
 EXPOSE 8000
 
-# Run Alembic as a separate release job before starting this container.
-CMD ["sh", "-c", "exec python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips \"${FORWARDED_ALLOW_IPS:-127.0.0.1}\""]
+# Apply migrations before serving traffic. Render Free does not support release/pre-deploy jobs.
+# Keep this service at a single instance while using startup migrations.
+CMD ["sh", "-c", "python -m alembic upgrade head && exec python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips \"${FORWARDED_ALLOW_IPS:-127.0.0.1}\""]
