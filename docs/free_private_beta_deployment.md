@@ -119,7 +119,7 @@ Use the model IDs and per-1K prices actually available to the OpenRouter account
 
 ### Render Free migration behavior
 
-Render Free does not support Pre-Deploy Commands. RouteAlpha's production Docker startup therefore runs `python -m alembic upgrade head` before starting the API. Keep the service at one instance while using this deployment strategy.
+Render Free does not support Pre-Deploy Commands. Before deploying a schema change, run `./.venv/bin/python -m alembic upgrade head` once from a controlled local environment that has the production `DATABASE_URL`. Do not run migrations in the Free service startup path, because the service must bind its HTTP port promptly.
 
 ## 4. Deploy the FastAPI API on Render
 
