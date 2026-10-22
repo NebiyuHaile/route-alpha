@@ -39,7 +39,15 @@ def _send_transactional_email(recipient: str, subject: str, text: str) -> None:
             if not 200 <= response.status < 300:
                 raise RuntimeError("Transactional email provider rejected the message.")
     except HTTPError as exc:
-        logger.warning("resend_email_provider_rejected status_code=%s", exc.code)
+        # Resend returns a short JSON error explaining authorization or domain
+        # problems. It contains no account credentials, but truncate it so a
+        # provider-side change cannot create excessively large platform logs.
+        response_body = exc.read().decode("utf-8", errors="replace")[:500]
+        logger.warning(
+            "resend_email_provider_rejected status_code=%s response=%s",
+            exc.code,
+            response_body,
+        )
         raise RuntimeError("Transactional email delivery failed.") from exc
     except URLError as exc:
         logger.warning("resend_email_transport_error reason=%s", exc.reason)
