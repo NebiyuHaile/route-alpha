@@ -31,6 +31,9 @@ def _send_transactional_email(recipient: str, subject: str, text: str) -> None:
         headers={
             "Authorization": f"Bearer {RESEND_API_KEY}",
             "Content-Type": "application/json",
+            # Avoid Cloudflare rejecting urllib's default Python-urllib/*
+            # browser signature before the request reaches Resend.
+            "User-Agent": "RouteAlpha/1.0 (+https://routealpha.app)",
         },
         method="POST",
     )
