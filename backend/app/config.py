@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import os
+from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 from cryptography.fernet import Fernet
@@ -90,11 +91,9 @@ TRUSTED_HOSTS = _get_list_env("TRUSTED_HOSTS", ["localhost", "127.0.0.1"])
 ENFORCE_HTTPS = _get_bool_env("ENFORCE_HTTPS", IS_PRODUCTION)
 AUTO_CREATE_SCHEMA = _get_bool_env("AUTO_CREATE_SCHEMA", not IS_PRODUCTION)
 CONTACT_NOTIFICATION_EMAIL = os.getenv("CONTACT_NOTIFICATION_EMAIL")
-SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
-SMTP_PORT = _get_int_env("SMTP_PORT", 587)
-SMTP_USERNAME = os.getenv("SMTP_USERNAME")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
-SMTP_SENDER_EMAIL = os.getenv("SMTP_SENDER_EMAIL", SMTP_USERNAME or "")
+RESEND_API_KEY = os.getenv("RESEND_API_KEY")
+EMAIL_SENDER = os.getenv("EMAIL_SENDER")
+FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "http://localhost:3000").rstrip("/")
 AUTH_SECRET_KEY = os.getenv("AUTH_SECRET_KEY")
 if not AUTH_SECRET_KEY:
     raise RuntimeError(
@@ -102,6 +101,12 @@ if not AUTH_SECRET_KEY:
         "starting the RouteAlpha API."
     )
 AUTH_TOKEN_EXPIRE_HOURS = _get_int_env("AUTH_TOKEN_EXPIRE_HOURS", 24)
+AUTH_TOKEN_ISSUER = os.getenv("AUTH_TOKEN_ISSUER", "routealpha-api")
+AUTH_TOKEN_AUDIENCE = os.getenv("AUTH_TOKEN_AUDIENCE", "routealpha-web")
+if not AUTH_TOKEN_ISSUER or not AUTH_TOKEN_AUDIENCE:
+    raise RuntimeError("AUTH_TOKEN_ISSUER and AUTH_TOKEN_AUDIENCE must be non-empty.")
+if AUTH_TOKEN_EXPIRE_HOURS <= 0 or AUTH_TOKEN_EXPIRE_HOURS > 24:
+    raise RuntimeError("AUTH_TOKEN_EXPIRE_HOURS must be between 1 and 24.")
 TOTP_ENCRYPTION_KEY = os.getenv("TOTP_ENCRYPTION_KEY")
 if not TOTP_ENCRYPTION_KEY:
     if IS_PRODUCTION:
@@ -135,6 +140,11 @@ if IS_PRODUCTION:
         raise RuntimeError("ENFORCE_HTTPS must be true in production.")
     if not METRICS_TOKEN:
         raise RuntimeError("METRICS_TOKEN is required in production.")
+    if not RESEND_API_KEY or not EMAIL_SENDER:
+        raise RuntimeError("RESEND_API_KEY and EMAIL_SENDER are required in production.")
+    parsed_frontend_url = urlparse(FRONTEND_BASE_URL)
+    if parsed_frontend_url.scheme != "https" or not parsed_frontend_url.netloc:
+        raise RuntimeError("FRONTEND_BASE_URL must be an HTTPS URL in production.")
     if AUTO_CREATE_SCHEMA:
         raise RuntimeError("AUTO_CREATE_SCHEMA must be false in production; run Alembic migrations instead.")
 
@@ -152,14 +162,19 @@ MODEL_REQUEST_TIMEOUT_SECONDS = _get_float_env("MODEL_REQUEST_TIMEOUT_SECONDS", 
 MAX_INFERENCE_CONCURRENCY = _get_int_env("MAX_INFERENCE_CONCURRENCY", 20)
 INFERENCE_QUEUE_TIMEOUT_SECONDS = _get_float_env("INFERENCE_QUEUE_TIMEOUT_SECONDS", 5.0)
 REGISTER_RATE_LIMIT = os.getenv("REGISTER_RATE_LIMIT", "5/hour")
+RESEND_VERIFICATION_RATE_LIMIT = os.getenv("RESEND_VERIFICATION_RATE_LIMIT", "3/hour")
+VERIFY_EMAIL_RATE_LIMIT = os.getenv("VERIFY_EMAIL_RATE_LIMIT", "10/hour")
 CONTACT_RATE_LIMIT = os.getenv("CONTACT_RATE_LIMIT", "10/hour")
 INFERENCE_RATE_LIMIT = os.getenv("INFERENCE_RATE_LIMIT", "60/minute")
+EMAIL_VERIFICATION_TOKEN_TTL_HOURS = _get_int_env("EMAIL_VERIFICATION_TOKEN_TTL_HOURS", 24)
 if MODEL_REQUEST_TIMEOUT_SECONDS <= 0:
     raise RuntimeError("MODEL_REQUEST_TIMEOUT_SECONDS must be greater than zero.")
 if MAX_INFERENCE_CONCURRENCY <= 0:
     raise RuntimeError("MAX_INFERENCE_CONCURRENCY must be greater than zero.")
 if INFERENCE_QUEUE_TIMEOUT_SECONDS <= 0:
     raise RuntimeError("INFERENCE_QUEUE_TIMEOUT_SECONDS must be greater than zero.")
+if EMAIL_VERIFICATION_TOKEN_TTL_HOURS <= 0 or EMAIL_VERIFICATION_TOKEN_TTL_HOURS > 72:
+    raise RuntimeError("EMAIL_VERIFICATION_TOKEN_TTL_HOURS must be between 1 and 72.")
 
 MODEL_CATALOG = _get_model_catalog()
 

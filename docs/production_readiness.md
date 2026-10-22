@@ -11,6 +11,8 @@ Set `APP_ENV=production`. The API then refuses to start unless all of the follow
 - a long, unique `AUTH_SECRET_KEY`;
 - a valid `TOTP_ENCRYPTION_KEY` generated with Fernet;
 - a private `METRICS_TOKEN` for the metrics scraper;
+- a `RESEND_API_KEY` and verified `EMAIL_SENDER` for account-verification and transactional email;
+- an HTTPS `FRONTEND_BASE_URL` for verification links;
 - Redis-backed `RATE_LIMIT_STORAGE_URI`;
 - Redis `TELEMETRY_REDIS_URL` shared by all API instances;
 - explicit `CORS_ORIGINS`;
@@ -26,6 +28,9 @@ OPENROUTER_API_KEY=...
 AUTH_SECRET_KEY=... # generated from a cryptographically secure secret manager
 TOTP_ENCRYPTION_KEY=... # Fernet.generate_key()
 METRICS_TOKEN=... # long random value used in the X-Metrics-Token request header
+RESEND_API_KEY=re_...
+EMAIL_SENDER=RouteAlpha <hello@app.example.com>
+FRONTEND_BASE_URL=https://app.example.com
 RATE_LIMIT_STORAGE_URI=rediss://:...@redis.example.com:6379/0
 TELEMETRY_REDIS_URL=rediss://:...@redis.example.com:6379/1
 CELERY_BROKER_URL=rediss://:...@redis.example.com:6379/2
@@ -133,7 +138,7 @@ Before public exposure, require all of the following:
 - backend tests and compilation pass;
 - `npm audit --omit=dev --audit-level=high` has no high/critical findings;
 - `/health` and `/health/ready` pass in the deployed environment;
-- registration, login, 2FA, protected inference, fallback, and contact flows pass;
+- registration, email verification, login, 2FA/recovery-code, protected inference, fallback, and contact flows pass;
 - Redis rate limiting is verified across two API instances;
 - PostgreSQL backup restore has been tested;
 - Alembic migration execution has been tested against a clean database;

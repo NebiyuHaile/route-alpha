@@ -5,6 +5,7 @@ import math
 import secrets
 import time
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime, timedelta
 
 import pyotp
 import redis.asyncio as redis
@@ -21,8 +22,12 @@ from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_
 from sqlalchemy import inspect, text
 from uuid import uuid4
 from app.auth_utils import (
+    create_email_verification_token,
+    create_recovery_codes,
     create_access_token,
     decode_access_token,
+    hash_email_verification_token,
+    hash_recovery_code,
     hash_password,
     password_needs_rehash,
     verify_password,
@@ -30,8 +35,13 @@ from app.auth_utils import (
 from app.schemas import (
     AuthResponse,
     ContactRequestCreate,
+    EmailVerificationRequest,
     InferenceRequest,
+    RegistrationResponse,
+    ResendVerificationRequest,
     TwoFactorEnableRequest,
+    TwoFactorEnableResponse,
+    TwoFactorDisableRequest,
     TwoFactorSetupResponse,
     UserLoginRequest,
     UserRegisterRequest,
@@ -42,6 +52,7 @@ from app.llm_service import call_model
 from app.database import Base, engine, SessionLocal
 from app.models import ContactRequest, InferenceLog, ModelTaskPerformance, User
 from app.email_utils import send_contact_notification_safely
+from app.email_utils import send_email_verification_safely
 from app.analytics import (get_summary_stats, get_route_breakdown, get_model_breakdown, get_cost_breakdown, get_latency_breakdown, get_recent_requests, get_fallback_breakdowns)
 from app.config import (
     CORS_ORIGINS,
@@ -49,6 +60,7 @@ from app.config import (
     EMBEDDING_MAX_LENGTH,
     EMBEDDING_MODEL_DIR,
     ENFORCE_HTTPS,
+    EMAIL_VERIFICATION_TOKEN_TTL_HOURS,
     MODEL_ACCURACY_RATINGS,
     MODEL_CATALOG,
     METRICS_TOKEN,
@@ -59,6 +71,8 @@ from app.config import (
     IS_PRODUCTION,
     RATE_LIMIT_STORAGE_URI,
     REGISTER_RATE_LIMIT,
+    RESEND_VERIFICATION_RATE_LIMIT,
+    VERIFY_EMAIL_RATE_LIMIT,
     CONTACT_RATE_LIMIT,
     TELEMETRY_REDIS_URL,
     TRUSTED_HOSTS,
@@ -87,10 +101,13 @@ INFERENCE_QUEUE_REJECTION_COUNT = Counter(
 
 LOGIN_FAILURE_LIMIT = parse("5/15 minutes")
 REGISTER_LIMIT = parse(REGISTER_RATE_LIMIT)
+RESEND_VERIFICATION_LIMIT = parse(RESEND_VERIFICATION_RATE_LIMIT)
+VERIFY_EMAIL_LIMIT = parse(VERIFY_EMAIL_RATE_LIMIT)
 CONTACT_LIMIT = parse(CONTACT_RATE_LIMIT)
 INFERENCE_LIMIT = parse(INFERENCE_RATE_LIMIT)
 LOGIN_FAILURE_SCOPE = "auth-login-failures"
 limiter = Limiter(key_func=get_remote_address, storage_uri=RATE_LIMIT_STORAGE_URI)
+DUMMY_PASSWORD_HASH = hash_password("RouteAlpha invalid login timing placeholder")
 
 embedding_router = EmbeddingRouter(EMBEDDING_MODEL_DIR, EMBEDDING_MAX_LENGTH)
 telemetry_tracker = (
@@ -126,8 +143,13 @@ def ensure_user_columns() -> None:
     existing_columns = {column["name"] for column in inspector.get_columns("users")}
     column_definitions = {
         "is_admin": "ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT FALSE",
+        "token_version": "ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 0",
+        "email_verified": "ALTER TABLE users ADD COLUMN email_verified BOOLEAN DEFAULT FALSE",
+        "email_verification_token_hash": "ALTER TABLE users ADD COLUMN email_verification_token_hash VARCHAR",
+        "email_verification_expires_at": "ALTER TABLE users ADD COLUMN email_verification_expires_at DATETIME",
         "two_factor_enabled": "ALTER TABLE users ADD COLUMN two_factor_enabled BOOLEAN DEFAULT FALSE",
         "totp_secret": "ALTER TABLE users ADD COLUMN totp_secret VARCHAR",
+        "two_factor_recovery_code_hashes": "ALTER TABLE users ADD COLUMN two_factor_recovery_code_hashes TEXT",
     }
 
     with engine.begin() as connection:
@@ -208,6 +230,7 @@ def serialize_user(user: User) -> UserResponse:
         full_name=user.full_name,
         email=user.email,
         company=user.company,
+        email_verified=user.email_verified,
         two_factor_enabled=user.two_factor_enabled,
     )
 
@@ -215,6 +238,48 @@ def serialize_user(user: User) -> UserResponse:
 def _login_failure_key(request: Request, email: str) -> str:
     """Scope failed-login attempts to the source IP and normalized account."""
     return f"{get_remote_address(request)}:{email.strip().lower()}"
+
+
+def _utcnow_naive() -> datetime:
+    """Use UTC consistently with the database's timezone-naive timestamp column."""
+    return datetime.now(UTC).replace(tzinfo=None)
+
+
+def _set_email_verification_token(user: User) -> str:
+    token = create_email_verification_token()
+    user.email_verification_token_hash = hash_email_verification_token(token)
+    user.email_verification_expires_at = _utcnow_naive() + timedelta(
+        hours=EMAIL_VERIFICATION_TOKEN_TTL_HOURS
+    )
+    return token
+
+
+def _verify_or_consume_two_factor_code(user: User, code: str) -> bool:
+    """Accept a current TOTP code or consume one hashed recovery code."""
+    try:
+        totp_secret = decrypt_totp_secret(user.totp_secret or "")
+    except ValueError:
+        logger.exception("totp_secret_decryption_failed", extra={"user_id": user.user_id})
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Two-factor authentication is temporarily unavailable.",
+        )
+    if pyotp.TOTP(totp_secret).verify(code, valid_window=1):
+        return True
+
+    try:
+        recovery_hashes = json.loads(user.two_factor_recovery_code_hashes or "[]")
+    except json.JSONDecodeError:
+        recovery_hashes = []
+    if not isinstance(recovery_hashes, list):
+        return False
+    supplied_hash = hash_recovery_code(code)
+    for stored_hash in recovery_hashes:
+        if isinstance(stored_hash, str) and secrets.compare_digest(supplied_hash, stored_hash):
+            recovery_hashes.remove(stored_hash)
+            user.two_factor_recovery_code_hashes = json.dumps(recovery_hashes)
+            return True
+    return False
 
 
 def enforce_failed_login_limit(request: Request, email: str) -> None:
@@ -268,10 +333,15 @@ def get_current_user(
     db = SessionLocal()
     try:
         user = db.query(User).filter(User.user_id == payload["sub"]).first()
-        if not user or not user.is_active:
+        if not user or not user.is_active or not user.email_verified:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="User not found or inactive.",
+            )
+        if payload["ver"] != user.token_version:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Session has been invalidated.",
             )
         return user
     finally:
@@ -351,8 +421,12 @@ def metrics(request: Request):
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
-@app.post("/auth/register", response_model=AuthResponse)
-def register(request: UserRegisterRequest, http_request: Request):
+@app.post("/auth/register", response_model=RegistrationResponse)
+def register(
+    request: UserRegisterRequest,
+    http_request: Request,
+    background_tasks: BackgroundTasks,
+):
     enforce_rate_limit(
         http_request,
         REGISTER_LIMIT,
@@ -361,27 +435,31 @@ def register(request: UserRegisterRequest, http_request: Request):
     )
     db = SessionLocal()
     try:
-        existing_user = db.query(User).filter(User.email == request.email.lower()).first()
+        email = request.email.lower().strip()
+        existing_user = db.query(User).filter(User.email == email).first()
         if existing_user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="An account with that email already exists.",
+            return RegistrationResponse(
+                message="If the address can receive a RouteAlpha account, a verification email has been sent."
             )
 
         user = User(
             user_id=str(uuid4()),
             full_name=request.full_name.strip(),
-            email=request.email.lower().strip(),
+            email=email,
             company=request.company.strip() if request.company else None,
             password_hash=hash_password(request.password),
         )
+        verification_token = _set_email_verification_token(user)
         db.add(user)
         db.commit()
-        db.refresh(user)
-
-        return AuthResponse(
-            access_token=create_access_token(user.user_id, user.email),
-            user=serialize_user(user),
+        background_tasks.add_task(
+            send_email_verification_safely,
+            email=user.email,
+            full_name=user.full_name,
+            token=verification_token,
+        )
+        return RegistrationResponse(
+            message="If the address can receive a RouteAlpha account, a verification email has been sent."
         )
     except HTTPException:
         db.rollback()
@@ -399,7 +477,8 @@ def login(request: UserLoginRequest, http_request: Request):
     db = SessionLocal()
     try:
         user = db.query(User).filter(User.email == request.email.lower()).first()
-        if not user or not verify_password(request.password, user.password_hash):
+        password_hash = user.password_hash if user else DUMMY_PASSWORD_HASH
+        if not verify_password(request.password, password_hash):
             enforce_failed_login_limit(http_request, request.email)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -410,31 +489,29 @@ def login(request: UserLoginRequest, http_request: Request):
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="This account is inactive.",
             )
+        if not user.email_verified:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Verify your email address before signing in.",
+            )
         if password_needs_rehash(user.password_hash):
             user.password_hash = hash_password(request.password)
             db.commit()
         if user.two_factor_enabled:
-            try:
-                totp_secret = decrypt_totp_secret(user.totp_secret or "")
-            except ValueError:
-                logger.exception("totp_secret_decryption_failed", extra={"user_id": user.user_id})
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Two-factor authentication is temporarily unavailable.",
-                )
-            if not request.otp_code or not pyotp.TOTP(totp_secret).verify(
-                request.otp_code, valid_window=1
-            ):
+            if not request.otp_code or not _verify_or_consume_two_factor_code(user, request.otp_code):
+                enforce_failed_login_limit(http_request, request.email)
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="A valid two-factor authentication code is required.",
+                    detail="A valid authenticator or recovery code is required.",
                 )
             if not is_encrypted_totp_secret(user.totp_secret):
-                user.totp_secret = encrypt_totp_secret(totp_secret)
-                db.commit()
+                user.totp_secret = encrypt_totp_secret(decrypt_totp_secret(user.totp_secret or ""))
+            # A successful recovery-code path consumes a stored hash. Committing
+            # after every successful 2FA check is harmless for regular TOTP.
+            db.commit()
 
         return AuthResponse(
-            access_token=create_access_token(user.user_id, user.email),
+            access_token=create_access_token(user.user_id, user.email, user.token_version),
             user=serialize_user(user),
         )
     finally:
@@ -444,6 +521,97 @@ def login(request: UserLoginRequest, http_request: Request):
 @app.get("/auth/me", response_model=UserResponse)
 def auth_me(current_user: User = Depends(get_current_user)):
     return serialize_user(current_user)
+
+
+@app.post("/auth/verify-email")
+def verify_email(request: EmailVerificationRequest, http_request: Request):
+    enforce_rate_limit(
+        http_request,
+        VERIFY_EMAIL_LIMIT,
+        "auth-verify-email",
+        "Too many verification attempts. Try again after the retry period.",
+    )
+    token_hash = hash_email_verification_token(request.token)
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.email_verification_token_hash == token_hash).first()
+        if (
+            not user
+            or not user.email_verification_expires_at
+            or user.email_verification_expires_at <= _utcnow_naive()
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This verification link is invalid or has expired.",
+            )
+        user.email_verified = True
+        user.email_verification_token_hash = None
+        user.email_verification_expires_at = None
+        user.token_version += 1
+        db.commit()
+        return {"message": "Email verified. You can now sign in."}
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
+@app.post("/auth/resend-verification", response_model=RegistrationResponse)
+def resend_verification(
+    request: ResendVerificationRequest,
+    http_request: Request,
+    background_tasks: BackgroundTasks,
+):
+    email = request.email.lower().strip()
+    enforce_rate_limit(
+        http_request,
+        RESEND_VERIFICATION_LIMIT,
+        "auth-resend-verification",
+        "Too many verification email requests. Try again after the retry period.",
+        key=_login_failure_key(http_request, email),
+    )
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.email == email).first()
+        verification_token = None
+        if user and not user.email_verified:
+            verification_token = _set_email_verification_token(user)
+            db.commit()
+        if verification_token and user:
+            background_tasks.add_task(
+                send_email_verification_safely,
+                email=user.email,
+                full_name=user.full_name,
+                token=verification_token,
+            )
+        return RegistrationResponse(
+            message="If the address can receive a RouteAlpha account, a verification email has been sent."
+        )
+    except Exception:
+        db.rollback()
+        logger.exception("resend_verification_failed")
+        raise HTTPException(status_code=500, detail="Unable to process the verification request.")
+    finally:
+        db.close()
+
+
+@app.post("/auth/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(current_user: User = Depends(get_current_user)):
+    """Invalidate every active access token for the authenticated user."""
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.user_id == current_user.user_id).first()
+        if not user:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive.")
+        user.token_version += 1
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @app.post("/auth/2fa/setup", response_model=TwoFactorSetupResponse)
@@ -479,7 +647,7 @@ def setup_two_factor(current_user: User = Depends(get_current_user)):
     )
 
 
-@app.post("/auth/2fa/enable", response_model=UserResponse)
+@app.post("/auth/2fa/enable", response_model=TwoFactorEnableResponse)
 def enable_two_factor(
     request: TwoFactorEnableRequest,
     current_user: User = Depends(get_current_user),
@@ -510,6 +678,41 @@ def enable_two_factor(
         if not user:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive.")
         user.two_factor_enabled = True
+        recovery_codes = create_recovery_codes()
+        user.two_factor_recovery_code_hashes = json.dumps(
+            [hash_recovery_code(code) for code in recovery_codes]
+        )
+        db.commit()
+        db.refresh(user)
+        return TwoFactorEnableResponse(
+            **serialize_user(user).model_dump(), recovery_codes=recovery_codes
+        )
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
+@app.post("/auth/2fa/disable", response_model=UserResponse)
+def disable_two_factor(
+    request: TwoFactorDisableRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """Disable TOTP only after proving possession of password and a current second factor."""
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.user_id == current_user.user_id).first()
+        if not user or not user.two_factor_enabled:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Two-factor authentication is not enabled.")
+        if not verify_password(request.password, user.password_hash):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials.")
+        if not _verify_or_consume_two_factor_code(user, request.otp_code):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="A valid authenticator or recovery code is required.")
+        user.two_factor_enabled = False
+        user.totp_secret = None
+        user.two_factor_recovery_code_hashes = None
+        user.token_version += 1
         db.commit()
         db.refresh(user)
         return serialize_user(user)
@@ -742,3 +945,5 @@ def create_contact_request(
         raise HTTPException(status_code=500, detail="Unable to submit the contact request.")
     finally:
         db.close()
+    RegistrationResponse,
+    ResendVerificationRequest,

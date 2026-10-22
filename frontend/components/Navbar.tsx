@@ -16,6 +16,7 @@ const productLinks = [
   { href: "/", label: "Overview" },
   { href: "/dashboard", label: "Dashboard" },
   { href: "/infer", label: "Playground" },
+  { href: "/settings/security", label: "Security" },
   { href: "/contact", label: "Contact" },
 ];
 

@@ -49,7 +49,7 @@ class UserRegisterRequest(BaseModel):
 class UserLoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
-    otp_code: str | None = Field(default=None, min_length=6, max_length=8)
+    otp_code: str | None = Field(default=None, min_length=6, max_length=128)
 
 
 class UserResponse(BaseModel):
@@ -57,6 +57,7 @@ class UserResponse(BaseModel):
     full_name: str
     email: EmailStr
     company: str | None = None
+    email_verified: bool = False
     two_factor_enabled: bool = False
 
 
@@ -66,10 +67,31 @@ class AuthResponse(BaseModel):
     user: UserResponse
 
 
+class RegistrationResponse(BaseModel):
+    message: str
+
+
+class EmailVerificationRequest(BaseModel):
+    token: str = Field(min_length=32, max_length=512)
+
+
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr
+
+
 class TwoFactorSetupResponse(BaseModel):
     secret: str
     provisioning_uri: str
 
 
 class TwoFactorEnableRequest(BaseModel):
-    otp_code: str = Field(min_length=6, max_length=8)
+    otp_code: str = Field(min_length=6, max_length=128)
+
+
+class TwoFactorEnableResponse(UserResponse):
+    recovery_codes: list[str]
+
+
+class TwoFactorDisableRequest(BaseModel):
+    password: str = Field(min_length=8, max_length=128)
+    otp_code: str = Field(min_length=6, max_length=128)

@@ -49,8 +49,13 @@ class User(Base):
     password_hash = Column(String, nullable=False)
     is_active = Column(Boolean, nullable=False, default=True)
     is_admin = Column(Boolean, nullable=False, default=False)
+    token_version = Column(Integer, nullable=False, default=0)
+    email_verified = Column(Boolean, nullable=False, default=False)
+    email_verification_token_hash = Column(String, nullable=True, index=True)
+    email_verification_expires_at = Column(DateTime, nullable=True)
     two_factor_enabled = Column(Boolean, nullable=False, default=False)
     totp_secret = Column(String, nullable=True)
+    two_factor_recovery_code_hashes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
 
 
