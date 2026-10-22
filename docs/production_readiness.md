@@ -94,7 +94,7 @@ cd backend
 APP_ENV=production AUTO_CREATE_SCHEMA=false ./.venv/bin/python -m alembic upgrade head
 ```
 
-Run migrations as a one-off release job with the same production database credentials used by the API. Do not run more than one migration job concurrently. For an existing local database created before Alembic, back it up first and use `alembic stamp head` only after verifying that its schema matches the initial migration.
+Run migrations as a one-off release job with the same production database credentials used by the API when the platform supports release jobs. Render Free does not: its production Docker startup runs `python -m alembic upgrade head` before starting the API, so keep that service at one instance. For an existing local database created before Alembic, back it up first and use `alembic stamp head` only after verifying that its schema matches the initial migration.
 
 ## Health checks
 

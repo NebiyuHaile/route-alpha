@@ -117,6 +117,10 @@ MODEL_STRONG_OUTPUT_PER_1K='<price>' \
 
 Use the model IDs and per-1K prices actually available to the OpenRouter account at deployment time. The API requires explicit production prices so the dashboard's cost estimates remain meaningful.
 
+### Render Free migration behavior
+
+Render Free does not support Pre-Deploy Commands. RouteAlpha's production Docker startup therefore runs `python -m alembic upgrade head` before starting the API. Keep the service at one instance while using this deployment strategy.
+
 ## 4. Deploy the FastAPI API on Render
 
 1. In Render, create a new **Blueprint** from this repository. It will detect the root [`render.yaml`](../render.yaml).
