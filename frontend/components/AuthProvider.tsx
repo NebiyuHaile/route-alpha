@@ -14,6 +14,7 @@ type AuthUser = {
   full_name: string;
   email: string;
   company?: string | null;
+  email_verified: boolean;
   two_factor_enabled: boolean;
 };
 
@@ -34,8 +35,9 @@ type AuthContextValue = {
     email: string;
     company?: string;
     password: string;
-  }) => Promise<void>;
-  logout: () => void;
+  }) => Promise<string>;
+  resendVerification: (email: string) => Promise<string>;
+  logout: () => Promise<void>;
   authFetch: (input: string, init?: RequestInit) => Promise<Response>;
 };
 
@@ -130,6 +132,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
+  const logout = useCallback(async () => {
+    try {
+      if (token) {
+        await fetch(`${API_BASE_URL}/auth/logout`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
+    } catch {
+      // Local sign-out must still succeed if the API is temporarily unavailable.
+    } finally {
+      // Clear the local browser session even when the network is unavailable.
+      clearSession();
+    }
+  }, [clearSession, token]);
+
   const handleAuthRequest = useCallback(async (
     endpoint: "/auth/login" | "/auth/register",
     payload: Record<string, string>
@@ -164,8 +182,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     company?: string;
     password: string;
   }) => {
-    await handleAuthRequest("/auth/register", payload);
-  }, [handleAuthRequest]);
+    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(data?.detail || "Unable to create the account.");
+    }
+    return data?.message || "Check your email to verify your account.";
+  }, []);
+
+  const resendVerification = useCallback(async (email: string) => {
+    const response = await fetch(`${API_BASE_URL}/auth/resend-verification`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(data?.detail || "Unable to resend the verification email.");
+    }
+    return data?.message || "Check your email for a verification link.";
+  }, []);
 
   const authFetch = useCallback(async (input: string, init: RequestInit = {}) => {
     const headers = new Headers(init.headers);
@@ -194,10 +234,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isReady,
       login,
       register,
-      logout: clearSession,
+      resendVerification,
+      logout,
       authFetch,
     }),
-    [authFetch, clearSession, isReady, login, register, token, user]
+    [authFetch, isReady, login, logout, register, resendVerification, token, user]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

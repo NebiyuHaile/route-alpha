@@ -151,11 +151,12 @@ RouteAlpha currently includes:
 - Argon2id password hashing with transparent verified migration from legacy PBKDF2 hashes;
 - signed, expiring bearer tokens and active-user checks on protected routes;
 - failed-login limiting by IP and normalized email address;
-- optional time-based one-time password (TOTP) enrollment;
+- optional time-based one-time password (TOTP) enrollment with hashed, single-use recovery codes;
 - protected Prometheus-compatible HTTP, provider-call, and fallback metrics;
 - production browser security headers and bounded provider request concurrency;
 - a reusable `require_admin` server-side dependency for future privileged endpoints; and
-- background contact notifications so SMTP delivery cannot block form submission.
+- hashed, expiring email-verification links delivered through an HTTPS transactional-email provider; and
+- background contact notifications so email delivery cannot block form submission.
 
 Local development uses in-memory rate-limit and telemetry storage. Production configuration requires shared Redis-backed storage, PostgreSQL, explicit origins/hosts, HTTPS enforcement, and a separate Fernet key for encrypted TOTP storage. Tenant-scoped authorization, audit logs, prompt-retention controls, and rate/budget controls for model traffic remain future product work.
 

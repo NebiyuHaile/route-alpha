@@ -20,7 +20,7 @@ This is a **private-beta stack**, not the final public-production topology in [t
 
 - Render's free web services spin down after idle time, can take about a minute to wake up, and are limited to one instance. The API therefore has cold starts and cannot validate RouteAlpha's multi-replica behavior.
 - Vercel Hobby is intended for personal and small-scale, non-commercial work. Do not use it for a commercial customer-facing launch.
-- Render's free service blocks common outbound SMTP ports. RouteAlpha's contact form can persist requests, but SMTP notification delivery should be treated as unavailable until it is moved to an HTTPS email provider or the API is hosted on a paid service.
+- Render's free service blocks common outbound SMTP ports. RouteAlpha therefore sends verification and contact email through an HTTPS transactional-email provider, not Gmail SMTP.
 - Do not run the optional Celery evaluator on this stack. There is no always-on free worker in this plan; leave the evaluator disabled until a worker-capable hosting tier is chosen.
 - Neon Free has a bounded monthly compute allowance and 0.5 GB storage per project. Upstash Free has one database and 256 MB. Set provider budget alerts and keep the public demo traffic modest.
 - The free services use public TLS endpoints. They do not provide the private database/Redis networking required by the full production runbook.
@@ -134,6 +134,9 @@ OPENROUTER_API_KEY=<dedicated key>
 AUTH_SECRET_KEY=<generated secret>
 TOTP_ENCRYPTION_KEY=<generated Fernet key>
 METRICS_TOKEN=<generated secret>
+RESEND_API_KEY=<transactional-email API key>
+EMAIL_SENDER=RouteAlpha <hello@your-verified-domain.example>
+FRONTEND_BASE_URL=https://<vercel-project>.vercel.app
 CORS_ORIGINS=https://<vercel-project>.vercel.app
 TRUSTED_HOSTS=<render-service>.onrender.com
 FORWARDED_ALLOW_IPS=*

@@ -27,9 +27,10 @@ function AuthPageContent() {
   const [password, setPassword] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [passwordRuleError, setPasswordRuleError] = useState("");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const { isAuthenticated, isReady, login, register } = useAuth();
+  const { isAuthenticated, isReady, login, register, resendVerification } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextPath = searchParams.get("next") || "/dashboard";
@@ -49,23 +50,38 @@ function AuthPageContent() {
     }
     setLoading(true);
     setError("");
+    setSuccess("");
 
     try {
       if (mode === "login") {
         await login(email, password, otpCode || undefined);
+        router.replace(nextPath);
       } else {
-        await register({
+        const message = await register({
           full_name: fullName,
           email,
           company,
           password,
         });
+        setSuccess(message);
       }
-      router.replace(nextPath);
     } catch (authError) {
       setError(
         authError instanceof Error ? authError.message : "Something went wrong."
       );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleResendVerification() {
+    if (!email) return;
+    setLoading(true);
+    setError("");
+    try {
+      setSuccess(await resendVerification(email));
+    } catch (authError) {
+      setError(authError instanceof Error ? authError.message : "Unable to resend verification email.");
     } finally {
       setLoading(false);
     }
@@ -221,6 +237,22 @@ function AuthPageContent() {
               {error ? (
                 <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                   {error}
+                </div>
+              ) : null}
+
+              {success ? (
+                <div className="rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-800">
+                  {success}
+                  {mode === "register" ? (
+                    <button
+                      type="button"
+                      onClick={handleResendVerification}
+                      disabled={loading || !email}
+                      className="ml-2 font-semibold underline decoration-teal-400 underline-offset-2 disabled:opacity-60"
+                    >
+                      Resend email
+                    </button>
+                  ) : null}
                 </div>
               ) : null}
 
