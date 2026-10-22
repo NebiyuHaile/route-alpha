@@ -16,30 +16,45 @@ export default function VerifyEmailPage() {
   const [message, setMessage] = useState("Verifying your RouteAlpha account…");
 
   useEffect(() => {
-    const token = getVerificationToken();
-    if (!token) {
-      setStatus("error");
-      setMessage("This verification link is missing its token.");
-      return;
-    }
+    let cancelled = false;
 
-    // Remove the secret from browser history before sending it to the API.
-    window.history.replaceState(null, "", window.location.pathname);
-    fetch(`${API_BASE_URL}/auth/verify-email`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token }),
-    })
-      .then(async (response) => {
+    const verifyEmail = async () => {
+      const token = getVerificationToken();
+      if (!token) {
+        if (!cancelled) {
+          setStatus("error");
+          setMessage("This verification link is missing its token.");
+        }
+        return;
+      }
+
+      // Remove the secret from browser history before sending it to the API.
+      window.history.replaceState(null, "", window.location.pathname);
+      try {
+        const response = await fetch(`${API_BASE_URL}/auth/verify-email`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token }),
+        });
         const data = await response.json().catch(() => null);
         if (!response.ok) throw new Error(data?.detail || "Unable to verify this email address.");
-        setStatus("success");
-        setMessage(data?.message || "Email verified. You can now sign in.");
-      })
-      .catch((error) => {
-        setStatus("error");
-        setMessage(error instanceof Error ? error.message : "Unable to verify this email address.");
-      });
+        if (!cancelled) {
+          setStatus("success");
+          setMessage(data?.message || "Email verified. You can now sign in.");
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setStatus("error");
+          setMessage(error instanceof Error ? error.message : "Unable to verify this email address.");
+        }
+      }
+    };
+
+    const timer = window.setTimeout(() => void verifyEmail(), 0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
   }, []);
 
   return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import Navbar from "../../../components/Navbar";
 import RequireAuth from "../../../components/RequireAuth";
 import { useAuth } from "../../../components/AuthProvider";
@@ -9,11 +9,16 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8
 
 type SetupResponse = { secret: string; provisioning_uri: string };
 type EnableResponse = { two_factor_enabled: boolean; recovery_codes: string[] };
+type ApiError = { detail?: string };
+
+function responseError(data: unknown, fallback: string) {
+  return typeof data === "object" && data !== null && "detail" in data && typeof data.detail === "string" ? data.detail : fallback;
+}
 
 export default function SecuritySettingsPage() {
   const { authFetch, user } = useAuth();
   const [setup, setSetup] = useState<SetupResponse | null>(null);
-  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [twoFactorOverride, setTwoFactorOverride] = useState<boolean | null>(null);
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
   const [disablePassword, setDisablePassword] = useState("");
   const [disableCode, setDisableCode] = useState("");
@@ -22,9 +27,7 @@ export default function SecuritySettingsPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    setTwoFactorEnabled(Boolean(user?.two_factor_enabled));
-  }, [user?.two_factor_enabled]);
+  const twoFactorEnabled = twoFactorOverride ?? Boolean(user?.two_factor_enabled);
 
   async function beginSetup() {
     setLoading(true);
@@ -32,9 +35,10 @@ export default function SecuritySettingsPage() {
     setMessage("");
     try {
       const response = await authFetch(`${API_BASE_URL}/auth/2fa/setup`, { method: "POST" });
-      const data = (await response.json().catch(() => null)) as EnableResponse | null;
-      if (!response.ok) throw new Error(data?.detail || "Unable to begin 2FA setup.");
-      setSetup(data as SetupResponse);
+      const data = (await response.json().catch(() => null)) as SetupResponse | ApiError | null;
+      if (!response.ok) throw new Error(responseError(data, "Unable to begin 2FA setup."));
+      if (!data || !("secret" in data) || !("provisioning_uri" in data)) throw new Error("Unable to begin 2FA setup.");
+      setSetup(data);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unable to begin 2FA setup.");
     } finally {
@@ -52,12 +56,12 @@ export default function SecuritySettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ otp_code: otpCode }),
       });
-      const data = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(data?.detail || "Unable to enable two-factor authentication.");
+      const data = (await response.json().catch(() => null)) as EnableResponse | ApiError | null;
+      if (!response.ok) throw new Error(responseError(data, "Unable to enable two-factor authentication."));
       setSetup(null);
       setOtpCode("");
-      setTwoFactorEnabled(true);
-      setRecoveryCodes(data?.recovery_codes || []);
+      setTwoFactorOverride(true);
+      setRecoveryCodes(data && "recovery_codes" in data ? data.recovery_codes : []);
       setMessage("Two-factor authentication is enabled. You will need a code at your next sign-in.");
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unable to enable two-factor authentication.");
@@ -76,9 +80,9 @@ export default function SecuritySettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password: disablePassword, otp_code: disableCode }),
       });
-      const data = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(data?.detail || "Unable to disable two-factor authentication.");
-      setTwoFactorEnabled(false);
+      const data = (await response.json().catch(() => null)) as ApiError | null;
+      if (!response.ok) throw new Error(responseError(data, "Unable to disable two-factor authentication."));
+      setTwoFactorOverride(false);
       setRecoveryCodes([]);
       setDisablePassword("");
       setDisableCode("");
