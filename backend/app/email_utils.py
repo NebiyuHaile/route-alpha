@@ -1,6 +1,7 @@
 """Transactional email delivery through HTTPS, compatible with Render's free plan."""
 
 import json
+import logging
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -12,6 +13,8 @@ from app.config import (
     RESEND_API_KEY,
 )
 from app.schemas import ContactRequestCreate
+
+logger = logging.getLogger(__name__)
 
 
 def _send_transactional_email(recipient: str, subject: str, text: str) -> None:
@@ -35,7 +38,11 @@ def _send_transactional_email(recipient: str, subject: str, text: str) -> None:
         with urlopen(request, timeout=20) as response:
             if not 200 <= response.status < 300:
                 raise RuntimeError("Transactional email provider rejected the message.")
-    except (HTTPError, URLError) as exc:
+    except HTTPError as exc:
+        logger.warning("resend_email_provider_rejected status_code=%s", exc.code)
+        raise RuntimeError("Transactional email delivery failed.") from exc
+    except URLError as exc:
+        logger.warning("resend_email_transport_error reason=%s", exc.reason)
         raise RuntimeError("Transactional email delivery failed.") from exc
 
 
@@ -105,5 +112,7 @@ def send_email_verification_safely(email: str, full_name: str, token: str) -> No
     try:
         send_email_verification(email=email, full_name=full_name, token=token)
     except Exception:
-        # The account remains unverified, and the user can request another link.
+        # Do not expose delivery details to a caller, but retain an operator-visible
+        # error without logging the email address or raw verification token.
+        logger.exception("email_verification_delivery_failed")
         return
